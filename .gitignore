@@ -1,0 +1,22 @@
+# System files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+
+# Build files
+/target/
+/dist/
+/build/
+/node_modules/
+
+# Log files
+*.log
+
+# Other
+*.bak
+*.swp
+*.swo

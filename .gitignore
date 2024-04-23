@@ -13,6 +13,10 @@ Thumbs.db
 /build/
 /node_modules/
 
+# raw files for sparse_smoothing env
+/data/raw/
+/data/processed/
+
 # Log files
 *.log
 

@@ -13,6 +13,9 @@ Thumbs.db
 /build/
 /node_modules/
 
+# data files
+/data/
+
 # raw files for sparse_smoothing env
 /data/raw/
 /data/processed/

@@ -53,6 +53,9 @@ class SparseGraph:
             attr_names: np.ndarray = None,
             edge_attr_names: np.ndarray = None,
             class_names: np.ndarray = None,
+            num_node_attr: int = None,
+            num_edge_attr: int = None,
+            num_classes: int = None,
             metadata: Any = None):
         # Make sure that the dimensions of matrices / arrays all agree
         if sp.isspmatrix(adj_matrix):
@@ -113,6 +116,9 @@ class SparseGraph:
         self._edge_attr_names = edge_attr_names
         self._class_names = class_names
         self._metadata = metadata
+        self._num_node_attr = attr_matrix.shape[1] if attr_matrix is not None else 0
+        self._num_edge_attr = edge_attr_matrix.shape[1] if edge_attr_matrix is not None else 0
+        self._num_classes = labels.max()+1 if labels is not None else 0
 
         self._flag_writeable(False)
 
@@ -392,7 +398,7 @@ class SparseGraph:
                         (data_dict[mat_data],
                          data_dict[mat_indices],
                          data_dict[mat_indptr]),
-                        shape=data_dict[mat_shape])
+                         shape=data_dict[mat_shape])
                 del_entries.extend([mat_data, mat_indices, mat_indptr, mat_shape])
 
         # Delete sparse matrix entries
@@ -403,6 +409,11 @@ class SparseGraph:
         for key, val in data_dict.items():
             if ((val is not None) and (None not in val)):
                 init_dict[key] = val
+        
+        # Change idx to names
+        for key in ['idx_to_node', 'idx_to_class']:
+            if key in init_dict:
+                del init_dict[key]
 
         # Check if the dictionary contains only entries in sparse_graph_properties
         unknown_keys = [key for key in init_dict.keys() if key not in sparse_graph_properties]
@@ -447,6 +458,18 @@ class SparseGraph:
     @property
     def metadata(self) -> Any:
         return self._metadata
+    
+    @property
+    def num_node_attr(self) -> int:
+        return self._num_node_attr
+    
+    @property
+    def num_edge_attr(self) -> int:
+        return self._num_edge_attr
+    
+    @property
+    def num_classes(self) -> int:
+        return self._num_classes
 
 
 def flag_writeable(matrix: Union[np.ndarray, sp.csr_matrix], writeable: bool):
@@ -560,8 +583,7 @@ def largest_connected_components(sparse_graph: 'SparseGraph', n_components: int 
     nodes_to_keep = [
         idx for (idx, component) in enumerate(component_indices) if component in components_to_keep
     ]
-    # TODO: add warnings / logging
-    # print("Selecting {0} largest connected components".format(n_components))
+    print("Selecting {0} largest connected components".format(n_components))
     return create_subgraph(sparse_graph, nodes_to_keep=nodes_to_keep)
 
 

@@ -10,11 +10,14 @@ Thumbs.db
 # Build files
 /target/
 /dist/
-/build/
+/build/git rm --cached <file_or_directory>
 /node_modules/
+/__pycache__/
+/model/__pycache__/
 
 # data files
 /data/
+/graphs/
 
 # raw files for sparse_smoothing env
 /data/raw/

@@ -147,7 +147,6 @@ class SparseGraph:
         ----------
         idx
             Index of the node whose neighbors are of interest.
-
         """
         return self.adj_matrix[idx].indices
 

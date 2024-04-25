@@ -19,6 +19,9 @@ Thumbs.db
 /data/
 /graphs/
 
+# model checkpoint
+/checkpoints/
+
 # raw files for sparse_smoothing env
 /data/raw/
 /data/processed/

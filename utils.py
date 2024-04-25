@@ -216,3 +216,24 @@ def SpG2PyG(graph: SparseGraph, random_seed, split=None):
                 val_mask=index_to_mask(val_idx, num_nodes), test_mask=index_to_mask(test_idx, num_nodes))
 
     return data
+
+
+def visualize_graph(graph: SparseGraph, path='graphs/graph.png',
+                    node_size = 15, font_size = 5, width = 0.5, figsize=(5, 5), dpi=300):
+    """
+    Visualize the graph.
+    """
+
+    import networkx as nx
+    import matplotlib.pyplot as plt
+
+    adj_matrix = graph.adj_matrix.tocoo()
+
+    G = nx.from_scipy_sparse_matrix(adj_matrix)
+    labels = {i: f'{graph.node_names[i]}' for i in range(graph.num_nodes())}
+
+    # Draw the graph
+    plt.figure(figsize=figsize)
+    nx.draw(G, labels=labels, node_size=node_size, font_size=font_size, font_color='black', edge_color='gray', width=width)
+    plt.savefig('graphs/subgraph.png', dpi=dpi)
+    plt.show()

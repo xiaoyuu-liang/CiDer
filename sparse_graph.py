@@ -40,6 +40,14 @@ class SparseGraph:
         Names of the edge attributes (as strings). Shape [num_edge_attr]
     class_names
         Names of the class labels (as strings). Shape [num_classes]
+    num_node_attr
+        Number of node attributes
+    num_edge_attr
+        Number of edge attributes
+    num_classes
+        Number of node classes
+    target_node
+        subgraph target node, None otherwise
     metadata
         Additional metadata such as text.
 
@@ -53,9 +61,6 @@ class SparseGraph:
             attr_names: np.ndarray = None,
             edge_attr_names: np.ndarray = None,
             class_names: np.ndarray = None,
-            num_node_attr: int = None,
-            num_edge_attr: int = None,
-            num_classes: int = None,
             metadata: Any = None):
         # Make sure that the dimensions of matrices / arrays all agree
         if sp.isspmatrix(adj_matrix):
@@ -119,6 +124,8 @@ class SparseGraph:
         self._num_node_attr = attr_matrix.shape[1] if attr_matrix is not None else 0
         self._num_edge_attr = edge_attr_matrix.shape[1] if edge_attr_matrix is not None else 0
         self._num_classes = labels.max()+1 if labels is not None else 0
+        self._target_node = None
+        self._degrees = np.array(self.adj_matrix.sum(axis=1)).flatten()
 
         self._flag_writeable(False)
 
@@ -422,6 +429,9 @@ class SparseGraph:
 
         return SparseGraph(**init_dict)
 
+    def set_target_node(self, target_node: int):
+        self._target_node = target_node
+
     @property
     def adj_matrix(self) -> sp.csr_matrix:
         return self._adj_matrix
@@ -470,6 +480,14 @@ class SparseGraph:
     def num_classes(self) -> int:
         return self._num_classes
 
+    @property
+    def target_node(self) -> int:
+        return self._target_node
+    
+    @property
+    def degrees(self) -> Union[np.ndarray, sp.csr_matrix]:
+        return self._degrees
+
 
 def flag_writeable(matrix: Union[np.ndarray, sp.csr_matrix], writeable: bool):
     if matrix is not None:
@@ -489,7 +507,8 @@ def create_subgraph(
         sparse_graph: 'SparseGraph',
         _sentinel: None = None,
         nodes_to_remove: np.ndarray = None,
-        nodes_to_keep: np.ndarray = None
+        nodes_to_keep: np.ndarray = None,
+        target_node: int = None
         ) -> 'SparseGraph':
     """
     Create a graph with the specified subset of nodes.
@@ -498,6 +517,8 @@ def create_subgraph(
     Note that to avoid confusion, it is required to pass node indices as named arguments to this function.
 
     The subgraph partially points to the old graph's data.
+
+    Set subgraph target node as target_node if provided.
 
     Parameters
     ----------
@@ -509,6 +530,8 @@ def create_subgraph(
         Indices of nodes that have to removed.
     nodes_to_keep
         Indices of nodes that have to be kept.
+    target_node
+        Index of target node.
 
     Returns
     -------
@@ -532,6 +555,15 @@ def create_subgraph(
         raise RuntimeError("This should never happen.")
 
     adj_matrix = sparse_graph.adj_matrix[nodes_to_keep][:, nodes_to_keep]
+    if target_node is not None:
+        target_idx = np.where(nodes_to_keep == target_node)[0]
+        if target_idx.size == 1:
+            target_idx = target_idx[0]
+        elif target_idx.size > 0:
+            raise ValueError("More than one target node.")
+        else:
+            raise ValueError("Target node is not in subgraph.")
+        
     if sparse_graph.attr_matrix is None:
         attr_matrix = None
     else:
@@ -552,10 +584,13 @@ def create_subgraph(
         node_names = sparse_graph.node_names[nodes_to_keep]
     # print("Resulting subgraph with N = {0}, E = {1}"
     #               .format(sparse_graph.num_nodes(), sparse_graph.num_edges()))
-    return SparseGraph(
-            adj_matrix, attr_matrix, edge_attr_matrix, labels, node_names,
-            sparse_graph.attr_names, sparse_graph.edge_attr_names,
-            sparse_graph.class_names, sparse_graph.metadata)
+    subgraph = SparseGraph(adj_matrix, attr_matrix, edge_attr_matrix, labels, node_names,
+                           sparse_graph.attr_names, sparse_graph.edge_attr_names,
+                           sparse_graph.class_names, sparse_graph.metadata)
+    if target_node is not None:
+        subgraph.set_target_node(target_idx)
+
+    return subgraph
 
 def largest_connected_components(sparse_graph: 'SparseGraph', n_components: int = 1) -> 'SparseGraph':
     """

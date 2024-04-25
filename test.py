@@ -32,7 +32,7 @@ print(f'Target node: {target_node}, name: {graph.node_names[target_node]}')
 layer_count = [1, 2]
 injection_budget = (2, 0.1)
 
-random_state = np.random.RandomState(args.seed+random.randint(1, 100))
+random_state = np.random.RandomState(args.seed+global_random_state.randint(1, 100))
 subgraph = hierarchical_rand_pruning(graph=graph, target_node=target_node, layer_count=layer_count, 
                                      injection_budget=injection_budget, random_state=random_state)
 print(f'Target node: {subgraph.target_node}, name: {subgraph.node_names[subgraph.target_node]}')

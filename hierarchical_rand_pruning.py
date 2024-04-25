@@ -48,10 +48,9 @@ def hierarchical_rand_pruning(graph: SparseGraph, target_node: int, layer_count:
             neighbors = graph.get_neighbors(v)
             l_hop.update(neighbors)
         nodes_to_keep.update(l_hop)
-    nodes_to_keep = np.array(list(nodes_to_keep))
     l_hop_graph = create_subgraph(graph, nodes_to_keep=nodes_to_keep, target_node=target_node)
     target_node = l_hop_graph.target_node
-    # print(f'Created {hop}-hop-subgraph with {l_hop_graph.num_nodes()} nodes and {l_hop_graph.num_edges()} edges with HiRP.')
+    print(f'Created {hop}-hop-subgraph with {l_hop_graph.num_nodes()} nodes and {l_hop_graph.num_edges()} edges with HiRP.')
 
     # randomly prune at most delta_v nodes with at most delta_d degree
     pruned_cnt = 0
@@ -60,14 +59,15 @@ def hierarchical_rand_pruning(graph: SparseGraph, target_node: int, layer_count:
 
     nodes_to_remove = set()
     for d in range(delta_d):
-        d_degree_indices = np.where(l_hop_graph.degrees == d+1)[0]
+        d_degree_indices = set(np.where(l_hop_graph.degrees == d+1)[0])
+        d_degree_indices.discard(target_node)
         if pruned_cnt + len(d_degree_indices) < delta_v:
             # if the number of nodes with degree d is less than delta_v, prune all
             nodes_to_remove.update(d_degree_indices)
             pruned_cnt += len(d_degree_indices)
         else:
             # randomly prune delta_v - pruned_cnt nodes with degree d
-            nodes_to_remove.update(random_state.choice(d_degree_indices, delta_v - pruned_cnt, replace=False))
+            nodes_to_remove.update(random_state.choice(np.array(list(d_degree_indices)), delta_v - pruned_cnt, replace=False))
             pruned_cnt = delta_v
 
     subgraph = create_subgraph(l_hop_graph, nodes_to_remove=nodes_to_remove, target_node=target_node)

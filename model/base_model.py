@@ -1,14 +1,16 @@
+import torch
+import logging
+
 import torch.optim as optim
 import torch.nn as nn
 import torch.nn.functional as F
 from copy import deepcopy
 from . import utils
-import torch
 
 
 class BaseModel(nn.Module):
     def __init__(self):
-        super(BaseModel, self).__init__()
+        super(BaseModel, self).__init__()   
         pass
 
     def fit(self, data, train_iters=1000, initialize=True, verbose=True, patience=100, **kwargs):
@@ -39,14 +41,14 @@ class BaseModel(nn.Module):
             loss_train.backward()
             optimizer.step()
 
-            if verbose and i % 50 == 0:
-                print('Epoch {}, training loss: {}'.format(i, loss_train.item()))
-
             self.eval()
             with torch.no_grad():
                 output = self.forward(x, edge_index)
             loss_val = F.nll_loss(output[val_mask], labels[val_mask])
             acc_val = utils.accuracy(output[val_mask], labels[val_mask])
+
+            if verbose and i % 10 == 0:
+                logging.info(f'Epoch {i}: training loss: {loss_train.item():.5f}, validation loss: {loss_val.item():.5f}, validation acc: {acc_val.item():.5f}')
 
             # if best_loss_val > loss_val:
             #     best_loss_val = loss_val
@@ -58,7 +60,7 @@ class BaseModel(nn.Module):
                 best_output = output
                 weights = deepcopy(self.state_dict())
 
-        print('best_acc_val:', best_acc_val.item())
+        logging.info('best_acc_val:', best_acc_val.item())
         self.load_state_dict(weights)
         return best_output
 
@@ -86,7 +88,8 @@ class BaseModel(nn.Module):
             optimizer.step()
 
             if verbose and i % 10 == 0:
-                print('Epoch {}, training loss: {}'.format(i, loss_train.item()))
+                logging.info(f'Epoch {i}: training loss: {loss_train.item():.5f}')
+
 
     def fit_with_val(self, pyg_data, train_iters=1000, initialize=True, patience=100, verbose=True, **kwargs):
         if initialize:
@@ -101,6 +104,7 @@ class BaseModel(nn.Module):
         """
         early stopping based on the validation loss
         """
+        
         if verbose:
             print(f'=== training {self.name} model ===')
         optimizer = optim.Adam(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
@@ -117,21 +121,20 @@ class BaseModel(nn.Module):
         for i in range(train_iters):
             self.train()
             optimizer.zero_grad()
-
+            
             output = self.forward(x, edge_index)
 
             loss_train = F.nll_loss(output[train_mask], labels[train_mask])
             loss_train.backward()
             optimizer.step()
 
-            if verbose and i % 10 == 0:
-                print('Epoch {}, training loss: {}'.format(i, loss_train.item()))
-
             self.eval()
             output = self.forward(x, edge_index)
             loss_val = F.nll_loss(output[val_mask], labels[val_mask])
             acc_val = utils.accuracy(output[val_mask], labels[val_mask])
-            # print(acc)
+
+            if verbose and i % 10 == 0:
+                logging.info(f'Epoch {i}: training loss: {loss_train.item():.5f}, validation loss: {loss_val.item():.5f}, validation acc: {acc_val.item():.5f}')
 
             # if best_loss_val > loss_val:
             #     best_loss_val = loss_val
@@ -155,8 +158,8 @@ class BaseModel(nn.Module):
                 break
 
         if verbose:
-             # print('=== early stopping at {0}, loss_val = {1} ==='.format(best_epoch, best_loss_val) )
-             print('=== early stopping at {0}, acc_val = {1} ==='.format(best_epoch, best_acc_val) )
+            # print('=== early stopping at {0}, loss_val = {1} ==='.format(best_epoch, best_loss_val) )
+            print('=== early stopping at {0}, acc_val = {1} ==='.format(best_epoch, best_acc_val) )
         self.load_state_dict(weights)
 
     def test(self):
@@ -174,9 +177,7 @@ class BaseModel(nn.Module):
         # output = self.output
         loss_test = F.nll_loss(output[test_mask], labels[test_mask])
         acc_test = utils.accuracy(output[test_mask], labels[test_mask])
-        print("Test set results:",
-              "loss= {:.4f}".format(loss_test.item()),
-              "accuracy= {:.4f}".format(acc_test.item()))
+        logging.info(f"Test set results: loss= {loss_test.item():.5f} accuracy= {acc_test.item():.5f}")
         return acc_test.item()
 
     def predict(self, x=None, edge_index=None, edge_weight=None):

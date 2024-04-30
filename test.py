@@ -7,43 +7,51 @@ import warnings
 import logging
 
 from sparse_graph import SparseGraph
-from utils import load_and_standardize, SpG2PyG
+from utils import load_and_standardize, SpG2PyG, get_marginal, get_one_hot
 from hierarchical_rand_pruning import hierarchical_rand_pruning
 
 from sacred import Experiment
 import seml
 
 ex = Experiment()
-seml.experiment.setup_logger(ex)
+seml.setup_logger(ex)
+
+ex = Experiment()
+seml.setup_logger(ex)
+
+
+@ex.config
+def config():
+    seed = 42
+    dataset = 'cora'
+
 
 @ex.automain
-def run():
+def run(seed, dataset, _run, _log):  
+
     warnings.filterwarnings("ignore")
+    global_random_state = np.random.RandomState(seed)
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--seed', type=int, default=42, help='random seed')
-    parser.add_argument('--dataset', type=str, default='cora', choices=['cora', 'citeseer', 'pubmed', 'cora_full', 'cora_ml', 'reddit', 
-                                                                        'amazon_computers', 'amazon_photo', 'ms_cs', 'ms_phy'], help='dataset')
-    args = parser.parse_args()
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    logging.info(f'Using device {device}')
 
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    graph = load_and_standardize(dataset=dataset, 
+                                 standard={'make_unweighted': True, 
+                                           'make_undirected': True, 
+                                           'no_self_loops': True, 
+                                           'select_lcc': False})
+    # global_random_state = np.random.RandomState(seed)
+    # target_node = global_random_state.choice(graph.num_nodes(), 1)[0]
+    # graph = hierarchical_rand_pruning(graph, target_node=target_node, layer_count=[1], injection_budget=(0, 0), random_state=global_random_state)
 
-    print(f'Loading {args.dataset} dataset')
-    dataset_file = f'data/{args.dataset}.npz'
-    graph = load_and_standardize(dataset_file, standard={'make_unweighted': True, 'make_undirected': True, 'no_self_loops': True, 'select_lcc': True})
-    logging.info(f'Number of nodes: {graph.num_nodes()}')
+    attr_one_hot, adj_one_hot = get_one_hot(graph)
+    np.set_printoptions(threshold=np.inf)
+    attr_margin, label_margin, adj_margin = get_marginal(graph)
+    
+    # print(attr_one_hot.shape)
+    # print('---------------------------------')
+    # print(adj_one_hot.shape)
 
-    global_random_state = np.random.RandomState(args.seed)
-
-    target_node = global_random_state.choice(graph.num_nodes(), 1)[0]
-
-    logging.info(f'Target node: {target_node}, name: {graph.node_names[target_node]}')
-
-    layer_count = [1, 2]
-    injection_budget = (2, 2)
-
-    random_state = np.random.RandomState(args.seed+global_random_state.randint(1, 100))
-    subgraph = hierarchical_rand_pruning(graph=graph, target_node=target_node, layer_count=layer_count, 
-                                        injection_budget=injection_budget, random_state=random_state)
-    logging.info(f'Target node: {subgraph.target_node}, name: {subgraph.node_names[subgraph.target_node]}')
+    print(attr_margin, label_margin, adj_margin)
+    
 

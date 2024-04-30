@@ -1,13 +1,15 @@
 import torch
 import numpy as np
 import scipy.sparse as sp
+import torch.nn.functional as F
 
 from torch_geometric.data import Data
 from sparse_graph import SparseGraph
 from sklearn.preprocessing import MultiLabelBinarizer, LabelBinarizer
 
 
-def load_and_standardize(file_name, standard=None):
+def load_and_standardize(dataset, 
+                         standard={'make_unweighted': True, 'make_undirected': True, 'no_self_loops':  True, 'select_lcc':  True}):
     """
     Run standardize() + make the attributes binary.
 
@@ -23,12 +25,8 @@ def load_and_standardize(file_name, standard=None):
         The standardized graph
 
     """
-    if standard is None:
-        standard = {'make_unweighted': True,
-                    'make_undirected': True,
-                    'no_self_loops':  True,
-                    'select_lcc':  True}
-    with np.load(file_name, allow_pickle=True) as loader:
+    dataset_file = f'data/{dataset}.npz'
+    with np.load(dataset_file, allow_pickle=True) as loader:
         loader = dict(loader)
         if 'type' in loader:
             del loader['type']
@@ -174,7 +172,13 @@ def get_train_val_test_split(random_state,
     return train_indices, val_indices, test_indices
 
 
-def SpG2PyG(graph: SparseGraph, random_seed, split=None):
+def SpG2PyG(graph: SparseGraph, random_seed, 
+            split={'train_examples_per_class': 20, 
+                   'val_examples_per_class': 30, 
+                   'test_examples_per_class': None,
+                   'train_size': None, 
+                   'val_size': None, 
+                   'test_size': None}):
     """
     Convert a SparseGraph object to PyG Data object.
 
@@ -192,10 +196,6 @@ def SpG2PyG(graph: SparseGraph, random_seed, split=None):
     random_state = np.random.RandomState(random_seed)
     num_nodes = graph.num_nodes()
 
-    edge_index = torch.LongTensor(np.stack(graph.adj_matrix.nonzero()))
-    x = torch.LongTensor(np.stack(graph.attr_matrix.nonzero()))
-    y = torch.LongTensor(graph.labels)
-
     edge_index = torch.LongTensor(graph.adj_matrix.nonzero())
     # by default, the features in pyg data is dense
     if sp.issparse(graph.attr_matrix):
@@ -205,10 +205,6 @@ def SpG2PyG(graph: SparseGraph, random_seed, split=None):
     y = torch.LongTensor(graph.labels)
 
     bi_labels = binarize_labels(y)
-
-    if split is None:
-        split = {'train_examples_per_class': 20, 'val_examples_per_class': 30, 'test_examples_per_class': None,
-                 'train_size': None, 'val_size': None, 'test_size': None}
     
     train_idx, val_idx, test_idx = get_train_val_test_split(random_state=random_state, labels=bi_labels, **split)
 
@@ -237,3 +233,4 @@ def visualize_graph(graph: SparseGraph, path='graphs/graph.png',
     nx.draw(G, labels=labels, node_size=node_size, font_size=font_size, font_color='black', edge_color='gray', width=width)
     plt.savefig('graphs/subgraph.png', dpi=dpi)
     plt.show()
+

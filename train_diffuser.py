@@ -11,11 +11,11 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.utilities.warnings import PossibleUserWarning
 
-from model.diffusion import utils
-from model.diffusion import diffusion_utils
-from model.diffusion import TrainAbstractMetricsDiscrete, TrainAbstractMetrics
-from model.diffusion import GraphJointDiffuser
-from model.diffusion import DummyExtraFeatures, ExtraFeatures
+from model.graphmaker import utils
+from model.graphmaker import diffusion_utils
+from model.graphmaker import TrainAbstractMetricsDiscrete, TrainAbstractMetrics
+from model.graphmaker import GraphJointDiffuser
+from model.graphmaker import DummyExtraFeatures, ExtraFeatures
 
 
 warnings.filterwarnings("ignore", category=PossibleUserWarning)

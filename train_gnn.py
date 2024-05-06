@@ -9,8 +9,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.datasets import Planetoid
 
-from model.classifier import GCN, GAT, APPNP, SAGE
-from utils import *
+from src.model.classifier import GCN, GAT, APPNP, SAGE
+from src.utils import *
 
 
 def train_gnn(model: str, dataset: str, seed: int, save_path: str, device: torch.device, 
@@ -25,7 +25,7 @@ def train_gnn(model: str, dataset: str, seed: int, save_path: str, device: torch
     """
     # Load dataset
     print(f'Loading {dataset} dataset')
-    graph = load_and_standardize(dataset, standard=standard)
+    graph = load_and_standardize(f'data/{dataset}.npz', standard=standard)
     print(f'Number of nodes: {graph.num_nodes()}')
 
     data = SpG2PyG(graph, random_seed=seed)
@@ -58,8 +58,8 @@ seml.setup_logger(ex)
 @ex.config
 def config():
     seed = 42
-    model = 'appnp'
-    dataset = 'cora'
+    model = 'gat'
+    dataset = 'pubmed'
 
 @ex.automain
 def run(seed, model, dataset, _run, _log):  

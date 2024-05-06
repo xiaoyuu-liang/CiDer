@@ -3,9 +3,9 @@ import logging
 import numpy as np
 from torch_geometric.data import Data, Dataset
 
-from sparse_graph import SparseGraph
+from src.sparse_graph import SparseGraph
 from utils import load_and_standardize
-from hierarchical_rand_pruning import hierarchical_rand_pruning, SpG2PyG
+from src.model.hierarchical_rand_pruning import hierarchical_rand_pruning, SpG2PyG
 
 
 class GraphDataset(Dataset):

@@ -107,9 +107,9 @@ class AttributedGraphDataset(InMemoryDataset):
         print('downloading and generating subgraphs')
         data_list = []
         for idx in range(self.graph.num_nodes()):
-            for hop in [1, 2]:
+            for hop in [1]:
                 egograph = hierarchical_rand_pruning(graph=self.graph, target_node=idx, layer_count=[hop],
-                                                    injection_budget=(0, 0), random_state=np.random.RandomState(0))
+                                                     injection_budget=(0, 0), random_state=np.random.RandomState(0))
                 attr_one_hot, _ = get_one_hot(egograph)
                 edge_index = torch.LongTensor(np.array(egograph.adj_matrix.nonzero()))
                 edge_attr = torch.zeros(edge_index.shape[-1], 2, dtype=torch.float)
@@ -118,7 +118,7 @@ class AttributedGraphDataset(InMemoryDataset):
                 num_nodes = egograph.num_nodes() * torch.ones(1, dtype=torch.long)
                 data = torch_geometric.data.Data(x=attr_one_hot, # (N, F, 2)
                                                  edge_index=edge_index, # 2 * |E| (sparse)
-                                                 edge_attr=edge_attr, #
+                                                 edge_attr=edge_attr, # ｜E｜ * 2
                                                  labels=egograph.labels,
                                                  y=y, n_nodes=num_nodes, target_node=idx)
                 
@@ -173,7 +173,7 @@ class AttributedGraphDataset(InMemoryDataset):
 
 
 class AttributedGraphDataModule(AbstractDataModule):
-    def __init__(self, cfg, n_graphs=200):
+    def __init__(self, cfg, n_graphs=3000):
         self.cfg = cfg
         self.datadir = cfg.dataset.datadir
         base_path = pathlib.Path(os.path.realpath(__file__)).parents[3]

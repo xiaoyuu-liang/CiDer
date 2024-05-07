@@ -2,15 +2,12 @@ import os
 import torch_geometric.utils
 from omegaconf import OmegaConf, open_dict
 from torch_geometric.utils import to_dense_adj, to_dense_batch
-
 import torch
-import torch.nn.functional as F
 import omegaconf
 import wandb
-import scipy.sparse as sp
-import numpy as np
-from src.sparse_graph import SparseGraph
 
+import scipy.sparse as sp
+import torch.nn.functional as F
 
 def create_folders(args):
     try:
@@ -208,6 +205,7 @@ def get_marginal(graph):
     attr_one_hot, adj_one_hot = get_one_hot(graph)
         
     # (F, 2)
+    attr_one_hot = attr_one_hot.permute(1, 0, 2)
     attr_one_hot_count = attr_one_hot.sum(dim=1)
     attr_margin = attr_one_hot_count / attr_one_hot_count.sum(dim=1, keepdim=True)
 

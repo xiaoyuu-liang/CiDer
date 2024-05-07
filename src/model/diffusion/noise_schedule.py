@@ -1,10 +1,7 @@
 import numpy as np
 import torch
-from .utils import * 
-from .diffusion_utils import *
-
-__all__ = ['PredefinedNoiseSchedule', 'PredefinedNoiseScheduleDiscrete', 'DiscreteUniformTransition',
-           'MarginalUniformTransition', 'AbsorbingStateTransition'] 
+from . import utils
+from . import diffusion_utils
 
 
 class PredefinedNoiseSchedule(torch.nn.Module):
@@ -140,17 +137,26 @@ class DiscreteUniformTransition:
 
 class MarginalUniformTransition:
     def __init__(self, x_marginals, e_marginals, y_classes):
-        self.X_classes = len(x_marginals)
+        """
+        x_marginals: (attrs_num, attr_classes)          
+            Marginal distribution of node attributes
+        e_marginals: (edge_classes)          
+            Marginal distribution of edge
+        y_classes: int             
+            Number of classes for the target variable
+        """
+        self.X_attrs_num, self.X_attrs_classes = x_marginals.shape
         self.E_classes = len(e_marginals)
         self.y_classes = y_classes
         self.x_marginals = x_marginals
         self.e_marginals = e_marginals
 
-        self.u_x = x_marginals.unsqueeze(0).expand(self.X_classes, -1).unsqueeze(0)
-        self.u_e = e_marginals.unsqueeze(0).expand(self.E_classes, -1).unsqueeze(0)
+        self.u_x = x_marginals.unsqueeze(1).expand(self.X_attrs_num, self.X_attrs_classes, -1).unsqueeze(0) # (1, attrs_num, attrs_classes, attrs_classes)
+        self.u_e = e_marginals.unsqueeze(0).expand(self.E_classes, -1).unsqueeze(0) # (1, edge_classes, edge_classes)
         self.u_y = torch.ones(1, self.y_classes, self.y_classes)
         if self.y_classes > 0:
             self.u_y = self.u_y / self.y_classes
+        
 
     def get_Qt(self, beta_t, device):
         """ Returns one-step transition matrices for X and E, from step t - 1 to step t.
@@ -164,7 +170,8 @@ class MarginalUniformTransition:
         self.u_e = self.u_e.to(device)
         self.u_y = self.u_y.to(device)
 
-        q_x = beta_t * self.u_x + (1 - beta_t) * torch.eye(self.X_classes, device=device).unsqueeze(0)
+        q_x = beta_t * self.u_x + (1 - beta_t) * torch.eye(self.X_attrs_classes, device=device).unsqueeze(0).expand(
+            self.X_attrs_num, self.X_attrs_classes, self.X_attrs_classes).unsqueeze(0)
         q_e = beta_t * self.u_e + (1 - beta_t) * torch.eye(self.E_classes, device=device).unsqueeze(0)
         q_y = beta_t * self.u_y + (1 - beta_t) * torch.eye(self.y_classes, device=device).unsqueeze(0)
 
@@ -183,9 +190,12 @@ class MarginalUniformTransition:
         self.u_e = self.u_e.to(device)
         self.u_y = self.u_y.to(device)
 
-        q_x = alpha_bar_t * torch.eye(self.X_classes, device=device).unsqueeze(0) + (1 - alpha_bar_t) * self.u_x
+        q_x = alpha_bar_t * torch.eye(self.X_attrs_classes, device=device).unsqueeze(0).expand(
+            self.X_attrs_num, self.X_attrs_classes, self.X_attrs_classes).unsqueeze(0) + (1 - alpha_bar_t) * self.u_x
         q_e = alpha_bar_t * torch.eye(self.E_classes, device=device).unsqueeze(0) + (1 - alpha_bar_t) * self.u_e
         q_y = alpha_bar_t * torch.eye(self.y_classes, device=device).unsqueeze(0) + (1 - alpha_bar_t) * self.u_y
+        print(f'q_x: {q_x.shape}, q_e: {q_e.shape}, q_y: {q_y.shape}')
+        sys.exit()
 
         return utils.PlaceHolder(X=q_x, E=q_e, y=q_y)
 

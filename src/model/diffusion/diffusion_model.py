@@ -6,19 +6,17 @@ import time
 import wandb
 import os
 
-from . import utils
-from .diffusion_utils import *
 from .transformer_model import GraphTransformer
 from .noise_schedule import DiscreteUniformTransition, PredefinedNoiseScheduleDiscrete,\
     MarginalUniformTransition
-from .train_metrics import TrainLossDiscrete
-from .abstract_metrics import SumExceptBatchMetric, SumExceptBatchKL, NLL
+from . import diffusion_utils
+from .train_metrics import TrainLossDiscrete, SumExceptBatchMetric, SumExceptBatchKL, NLL
+from . import utils
 
-
-__all__ = ['DiscreteDenoisingDiffusion']
 
 class GraphJointDiffuser(pl.LightningModule):
-    def __init__(self, cfg, dataset_infos, train_metrics, sampling_metrics):
+    def __init__(self, cfg, dataset_infos, train_metrics, sampling_metrics, extra_features,
+                 domain_features):
         super().__init__()
 
         input_dims = dataset_infos.input_dims
@@ -57,6 +55,9 @@ class GraphJointDiffuser(pl.LightningModule):
         self.train_metrics = train_metrics
         self.sampling_metrics = sampling_metrics
 
+        self.extra_features = extra_features
+        self.domain_features = domain_features
+
         self.model = GraphTransformer(n_layers=cfg.model.n_layers,
                                       input_dims=input_dims,
                                       hidden_mlp_dims=cfg.model.hidden_mlp_dims,
@@ -77,11 +78,9 @@ class GraphJointDiffuser(pl.LightningModule):
             self.limit_dist = utils.PlaceHolder(X=x_limit, E=e_limit, y=y_limit)
         elif cfg.model.transition == 'marginal':
 
-            node_types = self.dataset_info.node_types.float()
-            x_marginals = node_types / torch.sum(node_types)
+            x_marginals = self.dataset_info.node_attrs
+            e_marginals = self.dataset_info.edge_types
 
-            edge_types = self.dataset_info.edge_types.float()
-            e_marginals = edge_types / torch.sum(edge_types)
             print(f"Marginal distribution of the classes: {x_marginals} for nodes, {e_marginals} for edges")
             self.transition_model = MarginalUniformTransition(x_marginals=x_marginals, e_marginals=e_marginals,
                                                               y_classes=self.ydim_output)

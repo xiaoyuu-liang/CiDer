@@ -12,6 +12,8 @@ Thumbs.db
 /dist/
 /build/git rm --cached <file_or_directory>
 /node_modules/
+
+# python pycache
 /__pycache__/
 /src/__pycache__/
 /src/model/__pycache__/
@@ -27,11 +29,10 @@ Thumbs.db
 # running files
 /.hydra/
 /chain/
+/wandb/
 
 # model checkpoint
 /gnn_checkpoints/
-
-
 
 # Log files
 *.log

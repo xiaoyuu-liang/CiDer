@@ -145,15 +145,15 @@ class MarginalUniformTransition:
         y_classes: int             
             Number of classes for the target variable
         """
-        self.X_attrs_num, self.X_attrs_classes = x_marginals.shape
-        self.E_classes = len(e_marginals)
-        self.y_classes = y_classes
+        self.X_attrs_num, self.X_attrs_classes = x_marginals.shape # (dx, dx_c)
+        self.E_classes = len(e_marginals)                          # (de)
+        self.y_classes = y_classes                                 # (dy)
         self.x_marginals = x_marginals
         self.e_marginals = e_marginals
 
-        self.u_x = x_marginals.unsqueeze(1).expand(self.X_attrs_num, self.X_attrs_classes, -1).unsqueeze(0) # (1, attrs_num, attrs_classes, attrs_classes)
-        self.u_e = e_marginals.unsqueeze(0).expand(self.E_classes, -1).unsqueeze(0) # (1, edge_classes, edge_classes)
-        self.u_y = torch.ones(1, self.y_classes, self.y_classes)
+        self.u_x = x_marginals.unsqueeze(1).expand(self.X_attrs_num, self.X_attrs_classes, -1).unsqueeze(0)     # (1, dx, dx_c, dx_c)
+        self.u_e = e_marginals.unsqueeze(0).expand(self.E_classes, -1).unsqueeze(0)                             # (1, de, de)
+        self.u_y = torch.ones(1, self.y_classes, self.y_classes)                                                # (1, dy, dy)
         if self.y_classes > 0:
             self.u_y = self.u_y / self.y_classes
         
@@ -164,7 +164,7 @@ class MarginalUniformTransition:
 
         beta_t: (bs)                         noise level between 0 and 1
         returns: qx (bs, dx, dx), qe (bs, de, de), qy (bs, dy, dy). """
-        beta_t = beta_t.unsqueeze(1)
+        beta_t = beta_t.unsqueeze(1)                # (bs, 1)
         beta_t = beta_t.to(device)
         self.u_x = self.u_x.to(device)
         self.u_e = self.u_e.to(device)
@@ -184,18 +184,16 @@ class MarginalUniformTransition:
         alpha_bar_t: (bs)         Product of the (1 - beta_t) for each time step from 0 to t.
         returns: qx (bs, dx, dx), qe (bs, de, de), qy (bs, dy, dy).
         """
-        alpha_bar_t = alpha_bar_t.unsqueeze(1)
+        alpha_bar_t = alpha_bar_t.unsqueeze(1)              # (bs, 1, 1)   
         alpha_bar_t = alpha_bar_t.to(device)
         self.u_x = self.u_x.to(device)
         self.u_e = self.u_e.to(device)
         self.u_y = self.u_y.to(device)
 
-        q_x = alpha_bar_t * torch.eye(self.X_attrs_classes, device=device).unsqueeze(0).expand(
-            self.X_attrs_num, self.X_attrs_classes, self.X_attrs_classes).unsqueeze(0) + (1 - alpha_bar_t) * self.u_x
+        q_x = alpha_bar_t.unsqueeze(1) * torch.eye(self.X_attrs_classes, device=device).unsqueeze(0).expand(
+            self.X_attrs_num, self.X_attrs_classes, self.X_attrs_classes).unsqueeze(0) + (1 - alpha_bar_t.unsqueeze(1)) * self.u_x
         q_e = alpha_bar_t * torch.eye(self.E_classes, device=device).unsqueeze(0) + (1 - alpha_bar_t) * self.u_e
         q_y = alpha_bar_t * torch.eye(self.y_classes, device=device).unsqueeze(0) + (1 - alpha_bar_t) * self.u_y
-        print(f'q_x: {q_x.shape}, q_e: {q_e.shape}, q_y: {q_y.shape}')
-        sys.exit()
 
         return utils.PlaceHolder(X=q_x, E=q_e, y=q_y)
 

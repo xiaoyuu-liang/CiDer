@@ -66,16 +66,11 @@ def main(cfg: DictConfig):
 
     datamodule = AttributedGraphDataModule(cfg)
     dataset_infos = AttributedDatasetInfos(datamodule, dataset_config)
-    extra_features = DummyExtraFeatures()
-    domain_features = DummyExtraFeatures()
-    dataset_infos.compute_input_output_dims(datamodule=datamodule, 
-                                            extra_features=extra_features, domain_features=domain_features)
+    dataset_infos.compute_input_output_dims(datamodule=datamodule)
 
     train_metrics = TrainAbstractMetricsDiscrete()
     sampling_metrics = None
-    model_kwargs = {'dataset_infos': dataset_infos, 'train_metrics': train_metrics,
-                    'sampling_metrics': sampling_metrics,
-                    'extra_features': extra_features, 'domain_features': domain_features}  
+    model_kwargs = {'dataset_infos': dataset_infos}  
 
     if cfg.general.test_only:
         # When testing, previous configuration is fully loaded
@@ -93,14 +88,20 @@ def main(cfg: DictConfig):
     use_gpu = cfg.general.gpus > 0 and torch.cuda.is_available()
 
     model = GraphJointDiffuser(cfg, **model_kwargs)
-    trainer = Trainer(accelerator='gpu' if use_gpu else 'cpu',
+    trainer = Trainer(gradient_clip_val=cfg.train.clip_grad,
+                      strategy="ddp_find_unused_parameters_true",  # Needed to load old checkpoints
+                      accelerator='gpu' if use_gpu else 'cpu',
                       devices=cfg.general.gpus if use_gpu else 1,
-                      max_epochs=10)
+                      max_epochs=cfg.train.n_epochs,
+                      check_val_every_n_epoch=cfg.general.check_val_every_n_epochs,
+                      fast_dev_run=cfg.general.name == 'debug',
+                      enable_progress_bar=False,
+                      callbacks=callbacks,
+                      log_every_n_steps=50 if name != 'debug' else 1,
+                      logger = [])
     print(f"Training {name}")
-    
-    trainer.fit(model, datamodule=datamodule, ckpt_path=cfg.general.resume)
-
-
+    datamodule.train_dataloader()
+    trainer.fit(model, datamodule=datamodule)
         
     
 

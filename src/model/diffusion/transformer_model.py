@@ -8,11 +8,9 @@ from torch.nn.modules.normalization import LayerNorm
 from torch.nn import functional as F
 from torch import Tensor
 
-from .utils import *
-from .diffusion_utils import *
+from . import utils
+from . import diffusion_utils
 from .layers import Xtoy, Etoy, masked_softmax
-
-__all__ = ['GraphTransformer']
 
 
 class GraphTransformer(nn.Module):
@@ -21,7 +19,7 @@ class GraphTransformer(nn.Module):
     dims : dict -- contains dimensions for each feature type
     """
     def __init__(self, n_layers: int, input_dims: dict, hidden_mlp_dims: dict, hidden_dims: dict,
-                 output_dims: dict, act_fn_in: nn.ReLU(), act_fn_out: nn.ReLU()):
+                 output_dims: dict, act_fn_in: nn.ReLU, act_fn_out: nn.ReLU):
         super().__init__()
         self.n_layers = n_layers
         self.out_dim_X = output_dims['X']

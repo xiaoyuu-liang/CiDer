@@ -232,21 +232,21 @@ def check_issues_norm_values(gamma, norm_val1, norm_val2, num_stdevs=8):
 
 def sample_discrete_features(probX, probE, node_mask):
     ''' Sample features from multinomial distribution with given probabilities (probX, probE, proby)
-        :param probX: bs, n, dx_out        node features
-        :param probE: bs, n, n, de_out     edge features
-        :param proby: bs, dy_out           global features.
+        :param probX: bs, n, dx, dx_c        node features
+        :param probE: bs, n, n, de           edge features
+        :param proby: bs, dy                 global features.
     '''
-    bs, n, _ = probX.shape
+    bs, n, dx, _ = probX.shape
     # Noise X
     # The masked rows should define probability distributions as well
     probX[~node_mask] = 1 / probX.shape[-1]
 
     # Flatten the probability tensor to sample with multinomial
-    probX = probX.reshape(bs * n, -1)       # (bs * n, dx_out)
+    probX = probX.reshape(bs * n * dx, -1)       # (bs * n * dx, dx_c)
 
     # Sample X
-    X_t = probX.multinomial(1)                                  # (bs * n, 1)
-    X_t = X_t.reshape(bs, n)     # (bs, n)
+    X_t = probX.multinomial(1)                   # (bs * n * dx, 1)
+    X_t = X_t.reshape(bs, n, dx)                 # bs * n * dx
 
     # Noise E
     # The masked rows should define probability distributions as well

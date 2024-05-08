@@ -104,8 +104,8 @@ def update_config_with_new_keys(cfg, saved_cfg):
 
 class PlaceHolder:
     def __init__(self, X, E, y):
-        self.X = X
-        self.E = E
+        self.X = X      
+        self.E = E      
         self.y = y
 
     def type_as(self, x: torch.Tensor):
@@ -116,9 +116,10 @@ class PlaceHolder:
         return self
 
     def mask(self, node_mask, collapse=False):
-        x_mask = node_mask.unsqueeze(-1)          # bs, n, 1
-        e_mask1 = x_mask.unsqueeze(2)             # bs, n, 1, 1
-        e_mask2 = x_mask.unsqueeze(1)             # bs, 1, n, 1
+        e_mask = node_mask.unsqueeze(-1)
+        x_mask = node_mask.unsqueeze(-1).unsqueeze(-1)          # bs, n, 1, 1
+        e_mask1 = e_mask.unsqueeze(2)                           # bs, n, 1, 1
+        e_mask2 = e_mask.unsqueeze(1)                           # bs, 1, n, 1
 
         if collapse:
             self.X = torch.argmax(self.X, dim=-1)

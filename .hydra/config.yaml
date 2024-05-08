@@ -1,5 +1,5 @@
 general:
-  name: debug
+  name: graph-joint-diffuser 0508
   wandb: disabled
   gpus: 1
   resume: null
@@ -23,9 +23,9 @@ model:
   diffusion_steps: 500
   diffusion_noise_schedule: cosine
   n_layers: 5
-  extra_features: all
+  extra_features: null
   hidden_mlp_dims:
-    X: 256
+    X: 2048
     E: 128
     'y': 128
   hidden_dims:
@@ -33,7 +33,7 @@ model:
     de: 64
     dy: 64
     n_head: 8
-    dim_ffX: 256
+    dim_ffX: 2048
     dim_ffE: 128
     dim_ffy: 128
   lambda_train:
@@ -41,11 +41,11 @@ model:
   - 0
 train:
   n_epochs: 1
-  batch_size: 1
+  batch_size: 4
   lr: 0.0002
   clip_grad: 0.5
   save_model: false
-  num_workers: 0
+  num_workers: 4
   ema_decay: 0
   progress_bar: false
   weight_decay: 1.0e-12

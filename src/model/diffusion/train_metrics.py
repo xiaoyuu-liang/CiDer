@@ -97,8 +97,8 @@ class CrossEntropyMetric(Metric):
 
     def update(self, preds: Tensor, target: Tensor) -> None:
         """ Update state with predictions and targets.
-            preds: Predictions from model   (bs * n, d) or (bs * n * n, d)
-            target: Ground truth values     (bs * n, d) or (bs * n * n, d). """
+            preds: Predictions from model   (bs * n * bx, d) or (bs * n * n, d)
+            target: Ground truth values     (bs * n * bx, d) or (bs * n * n, d). """
         target = torch.argmax(target, dim=-1)
         output = F.cross_entropy(preds, target, reduction='sum')
         self.total_ce += output
@@ -199,16 +199,16 @@ class TrainLossDiscrete(nn.Module):
 
     def forward(self, masked_pred_X, masked_pred_E, pred_y, true_X, true_E, true_y, log: bool):
         """ Compute train metrics
-        masked_pred_X : tensor -- (bs, n, dx)
+        masked_pred_X : tensor -- (bs, n, dx, dx_c)
         masked_pred_E : tensor -- (bs, n, n, de)
         pred_y : tensor -- (bs, )
-        true_X : tensor -- (bs, n, dx)
+        true_X : tensor -- (bs, n, dx, dx_c)
         true_E : tensor -- (bs, n, n, de)
         true_y : tensor -- (bs, )
         log : boolean. """
-        true_X = torch.reshape(true_X, (-1, true_X.size(-1)))  # (bs * n, dx)
+        true_X = torch.reshape(true_X, (-1, true_X.size(-1)))  # (bs * n * dx, dx_c)
         true_E = torch.reshape(true_E, (-1, true_E.size(-1)))  # (bs * n * n, de)
-        masked_pred_X = torch.reshape(masked_pred_X, (-1, masked_pred_X.size(-1)))  # (bs * n, dx)
+        masked_pred_X = torch.reshape(masked_pred_X, (-1, masked_pred_X.size(-1)))  # (bs * n * dx, dx_c)
         masked_pred_E = torch.reshape(masked_pred_E, (-1, masked_pred_E.size(-1)))   # (bs * n * n, de)
 
         # Remove masked rows

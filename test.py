@@ -21,6 +21,7 @@ from src.model.diffusion.attributed_dataset import AttributedGraphDataModule, At
 from src.model.diffusion.extra_features import DummyExtraFeatures
 from src.model.diffusion.train_metrics import TrainAbstractMetricsDiscrete
 from src.model.diffusion.diffusion_model import GraphJointDiffuser
+from src.model.diffusion.extra_features import DummyExtraFeatures
 
 
 def get_resume(cfg, model_kwargs):
@@ -69,8 +70,10 @@ def main(cfg: DictConfig):
     dataset_infos.compute_input_output_dims(datamodule=datamodule)
 
     train_metrics = TrainAbstractMetricsDiscrete()
-    sampling_metrics = None
-    model_kwargs = {'dataset_infos': dataset_infos}  
+
+    extra_features = DummyExtraFeatures()
+    model_kwargs = {'dataset_infos': dataset_infos, 'extra_features': extra_features,
+                    'train_metrics': train_metrics}  
 
     if cfg.general.test_only:
         # When testing, previous configuration is fully loaded

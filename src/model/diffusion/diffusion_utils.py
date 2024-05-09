@@ -266,22 +266,21 @@ def sample_discrete_features(probX, probE, node_mask):
     return PlaceHolder(X=X_t, E=E_t, y=torch.zeros(bs, 0).type_as(X_t))
 
 
-def compute_posterior_distribution(M, M_t, Qt_M, Qsb_M, Qtb_M):
-    ''' M: X or E
-        Compute xt @ Qt.T * x0 @ Qsb / x0 @ Qtb @ xt.T
+def compute_edge_posterior_distribution(E, E_t, Qt_E, Qsb_E, Qtb_E):
+    ''' Compute xt @ Qt.T * x0 @ Qsb / x0 @ Qtb @ xt.T
     '''
     # Flatten feature tensors
-    M = M.flatten(start_dim=1, end_dim=-2).to(torch.float32)        # (bs, N, d) with N = n or n * n
-    M_t = M_t.flatten(start_dim=1, end_dim=-2).to(torch.float32)    # same
+    E = E.flatten(start_dim=1, end_dim=-2).to(torch.float32)        # (bs, N, d) with N = n * n
+    E_t = E_t.flatten(start_dim=1, end_dim=-2).to(torch.float32)    # same
 
-    Qt_M_T = torch.transpose(Qt_M, -2, -1)      # (bs, d, d)
+    Qt_M_T = torch.transpose(Qt_E, -2, -1)      # (bs, d, d)
 
-    left_term = M_t @ Qt_M_T   # (bs, N, d)
-    right_term = M @ Qsb_M     # (bs, N, d)
+    left_term = E_t @ Qt_M_T   # (bs, N, d)
+    right_term = E @ Qsb_E     # (bs, N, d)
     product = left_term * right_term    # (bs, N, d)
 
-    denom = M @ Qtb_M     # (bs, N, d) @ (bs, d, d) = (bs, N, d)
-    denom = (denom * M_t).sum(dim=-1)   # (bs, N, d) * (bs, N, d) + sum = (bs, N)
+    denom = E @ Qtb_E     # (bs, N, d) @ (bs, d, d) = (bs, N, d)
+    denom = (denom * E_t).sum(dim=-1)   # (bs, N, d) * (bs, N, d) + sum = (bs, N)
     # denom = product.sum(dim=-1)
     # denom[denom == 0.] = 1
 
@@ -290,10 +289,34 @@ def compute_posterior_distribution(M, M_t, Qt_M, Qsb_M, Qtb_M):
     return prob
 
 
+def compute_node_posterior_distribution(X, X_t, Qt_X, Qsb_X, Qtb_X):
+    ''' Compute xt @ Qt.T * x0 @ Qsb / x0 @ Qtb @ xt.T
+    '''
+    # Flatten feature tensors
+    X = X.permute(0, 2, 1, 3).to(torch.float32)             # (bs, dx, n, d)
+    X_t = X_t.permute(0, 2, 1, 3).to(torch.float32)         # same
+
+    Qt_X_T = torch.transpose(Qt_X, -2, -1)      # (bs, bx, d, d)
+
+    left_term = X_t @ Qt_X_T   # (bs, dx, n, d)
+    right_term = X @ Qsb_X     # (bs, dx, n, d)
+    product = left_term * right_term    # (bs, dx, n, d)
+
+    denom = X @ Qtb_X     # (bs, dx, n, d) @ (bs, dx, d, d) = (bs, dx, n, d)
+    denom = (denom * X_t).sum(dim=-1)   # (bs, dx, n, d) * (bs, dx, n, d) + sum = (bs, dx, n)
+    # denom = product.sum(dim=-1)
+    # denom[denom == 0.] = 1
+
+    prob = product / denom.unsqueeze(-1)    # (bs, dx, n, d)
+    prob = prob.permute(0, 2, 1, 3)
+
+    return prob
+
+
 def compute_batched_over0_posterior_distribution(X_t, Qt, Qsb, Qtb):
     """ M: X or E
         Compute xt @ Qt.T * x0 @ Qsb / x0 @ Qtb @ xt.T for each possible value of x0
-        X_t: bs, n, dt          or bs, n, n, dt
+        X_t: bs, n, dx, dt          or bs, n, n, dt
         Qt: bs, d_t-1, dt
         Qsb: bs, d0, d_t-1
         Qtb: bs, d0, dt.
@@ -324,8 +347,8 @@ def compute_batched_over0_posterior_distribution(X_t, Qt, Qsb, Qtb):
 def mask_distributions(true_X, true_E, pred_X, pred_E, node_mask):
     """
     Set masked rows to arbitrary distributions, so it doesn't contribute to loss
-    :param true_X: bs, n, dx_out
-    :param true_E: bs, n, n, de_out
+    :param true_X: bs, n, dx, dx_c
+    :param true_E: bs, n, n, de
     :param pred_X: bs, n, dx_out
     :param pred_E: bs, n, n, de_out
     :param node_mask: bs, n
@@ -357,8 +380,8 @@ def mask_distributions(true_X, true_E, pred_X, pred_E, node_mask):
 
 
 def posterior_distributions(X, E, y, X_t, E_t, y_t, Qt, Qsb, Qtb):
-    prob_X = compute_posterior_distribution(M=X, M_t=X_t, Qt_M=Qt.X, Qsb_M=Qsb.X, Qtb_M=Qtb.X)   # (bs, n, dx)
-    prob_E = compute_posterior_distribution(M=E, M_t=E_t, Qt_M=Qt.E, Qsb_M=Qsb.E, Qtb_M=Qtb.E)   # (bs, n * n, de)
+    prob_X = compute_node_posterior_distribution(X=X, X_t=X_t, Qt_X=Qt.X, Qsb_X=Qsb.X, Qtb_X=Qtb.X)         # (bs, n, dx, dx_c)
+    prob_E = compute_edge_posterior_distribution(E=E, E_t=E_t, Qt_E=Qt.E, Qsb_E=Qsb.E, Qtb_E=Qtb.E)         # (bs, n * n, de)
 
     return PlaceHolder(X=prob_X, E=prob_E, y=y_t)
 

@@ -22,11 +22,12 @@ class GraphTransformer(nn.Module):
                  output_dims: dict, act_fn_in: nn.ReLU, act_fn_out: nn.ReLU):
         super().__init__()
         self.n_layers = n_layers
-        self.out_dim_X = output_dims['X']
+        self.out_dim_X = output_dims['X'] * output_dims['Xc']
         self.out_dim_E = output_dims['E']
         self.out_dim_y = output_dims['y']
 
-        self.mlp_in_X = nn.Sequential(nn.Linear(input_dims['X'], hidden_mlp_dims['X']), act_fn_in,
+        # Transformer input dim for X = bx * bx_c
+        self.mlp_in_X = nn.Sequential(nn.Linear(input_dims['X']*input_dims['Xc'], hidden_mlp_dims['X']), act_fn_in, 
                                       nn.Linear(hidden_mlp_dims['X'], hidden_dims['dx']), act_fn_in)
 
         self.mlp_in_E = nn.Sequential(nn.Linear(input_dims['E'], hidden_mlp_dims['E']), act_fn_in,
@@ -41,10 +42,10 @@ class GraphTransformer(nn.Module):
                                                             n_head=hidden_dims['n_head'],
                                                             dim_ffX=hidden_dims['dim_ffX'],
                                                             dim_ffE=hidden_dims['dim_ffE'])
-                                        for i in range(n_layers)])
+                                        for _ in range(n_layers)])
 
         self.mlp_out_X = nn.Sequential(nn.Linear(hidden_dims['dx'], hidden_mlp_dims['X']), act_fn_out,
-                                       nn.Linear(hidden_mlp_dims['X'], output_dims['X']))
+                                       nn.Linear(hidden_mlp_dims['X'], output_dims['X']*output_dims['Xc']))
 
         self.mlp_out_E = nn.Sequential(nn.Linear(hidden_dims['de'], hidden_mlp_dims['E']), act_fn_out,
                                        nn.Linear(hidden_mlp_dims['E'], output_dims['E']))
@@ -53,7 +54,8 @@ class GraphTransformer(nn.Module):
                                        nn.Linear(hidden_mlp_dims['y'], output_dims['y']))
 
     def forward(self, X, E, y, node_mask):
-        bs, n = X.shape[0], X.shape[1]
+        bs, n, bx, bx_c = X.shape
+        X = X.view(bs, n, -1)               # (bs, n, bx*bx_c)
 
         diag_mask = torch.eye(n)
         diag_mask = ~diag_mask.type_as(E).bool()
@@ -65,8 +67,13 @@ class GraphTransformer(nn.Module):
 
         new_E = self.mlp_in_E(E)
         new_E = (new_E + new_E.transpose(1, 2)) / 2
-        after_in = utils.PlaceHolder(X=self.mlp_in_X(X), E=new_E, y=self.mlp_in_y(y)).mask(node_mask)
-        X, E, y = after_in.X, after_in.E, after_in.y
+        
+        x_mask = node_mask.unsqueeze(-1)                        # bs, n, 1        
+        e_mask1 = x_mask.unsqueeze(2)                           # bs, n, 1, 1
+        e_mask2 = x_mask.unsqueeze(1)                           # bs, 1, n, 1
+        X = self.mlp_in_X(X) * x_mask
+        E = new_E * e_mask1 * e_mask2
+        y = self.mlp_in_y(y)                           
 
         for layer in self.tf_layers:
             X, E, y = layer(X, E, y, node_mask)
@@ -75,7 +82,7 @@ class GraphTransformer(nn.Module):
         E = self.mlp_out_E(E)
         y = self.mlp_out_y(y)
 
-        X = (X + X_to_out)
+        X = (X + X_to_out).view(bs, n, bx, bx_c)
         E = (E + E_to_out) * diag_mask
         y = y + y_to_out
 
@@ -203,9 +210,9 @@ class NodeEdgeBlock(nn.Module):
 
     def forward(self, X, E, y, node_mask):
         """
-        :param X: bs, n, d        node features
-        :param E: bs, n, n, d     edge features
-        :param y: bs, dz           global features
+        :param X: bs, n, d(hidden_dim x)        node features
+        :param E: bs, n, n, d(hidden_dim e)     edge features
+        :param y: bs, dz                        global features
         :param node_mask: bs, n
         :return: newX, newE, new_y with the same shape.
         """
@@ -218,8 +225,8 @@ class NodeEdgeBlock(nn.Module):
         Q = self.q(X) * x_mask           # (bs, n, dx)
         K = self.k(X) * x_mask           # (bs, n, dx)
         diffusion_utils.assert_correctly_masked(Q, x_mask)
+        
         # 2. Reshape to (bs, n, n_head, df) with dx = n_head * df
-
         Q = Q.reshape((Q.size(0), Q.size(1), self.n_head, self.df))
         K = K.reshape((K.size(0), K.size(1), self.n_head, self.df))
 

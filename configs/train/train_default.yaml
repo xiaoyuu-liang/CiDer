@@ -1,10 +1,10 @@
 # Training settings
-n_epochs: 1
+n_epochs: 100
 batch_size: 4
 lr: 0.0002
-clip_grad: 0.5          # float, null to disable
-save_model: False
-num_workers: 4
+clip_grad: null          # float, null to disable
+save_model: True
+num_workers: 72
 ema_decay: 0           # 'Amount of EMA decay, 0 means off. A reasonable value  is 0.999.'
 progress_bar: false
 weight_decay: 1e-12

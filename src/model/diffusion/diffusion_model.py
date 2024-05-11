@@ -83,6 +83,19 @@ class GraphJointDiffuser(pl.LightningModule):
         self.number_chain_steps = cfg.general.number_chain_steps
         self.best_val_nll = 1e8
         self.val_counter = 0
+            
+    def configure_optimizers(self):
+        print('Using AdamW optimizer')
+        return torch.optim.AdamW(self.parameters(), lr=self.cfg.train.lr, amsgrad=True,
+                                 weight_decay=self.cfg.train.weight_decay)
+    
+    def on_fit_start(self) -> None:
+        print("on fit starting")
+        # self.train_iterations = len(self.trainer.train_dataloader)
+        self.print("Size of the input features", self.Xdim, self.Xcdim, self.Edim, self.ydim)
+        self.print("Size of the output features", self.Xdim_output, self.Xcdim_output, self.Edim_output, self.ydim_output)
+        if self.local_rank == 0:
+            utils.setup_wandb(self.cfg)
     
     def training_step(self, data, i):
         if data.edge_index.numel() == 0:
@@ -102,19 +115,6 @@ class GraphJointDiffuser(pl.LightningModule):
                            log=i % self.log_every_steps == 0)
 
         return {'loss': loss}
-            
-    def configure_optimizers(self):
-        print('Using AdamW optimizer')
-        return torch.optim.AdamW(self.parameters(), lr=self.cfg.train.lr, amsgrad=True,
-                                 weight_decay=self.cfg.train.weight_decay)
-    
-    def on_fit_start(self) -> None:
-        print("on fit staring")
-        self.train_iterations = len(self.trainer.datamodule.train_dataloader())
-        self.print("Size of the input features", self.Xdim, self.Xcdim, self.Edim, self.ydim)
-        self.print("Size of the output features", self.Xdim_output, self.Xcdim_output, self.Edim_output, self.ydim_output)
-        if self.local_rank == 0:
-            utils.setup_wandb(self.cfg)
     
     def on_train_epoch_start(self) -> None:
         self.print("Starting train epoch...")
@@ -128,9 +128,10 @@ class GraphJointDiffuser(pl.LightningModule):
                       f" -- E_CE: {to_log['train_epoch/E_CE'] :.3f} --"
                       f" y_CE: {to_log['train_epoch/y_CE'] :.3f}"
                       f" -- {time.time() - self.start_epoch_time:.1f}s ")
-        epoch_at_metrics, epoch_bond_metrics = self.train_metrics.log_epoch_metrics()
-        self.print(f"Epoch {self.current_epoch}: {epoch_at_metrics} -- {epoch_bond_metrics}")   
+        # epoch_at_metrics, epoch_bond_metrics = self.train_metrics.log_epoch_metrics()
+        # self.print(f"Epoch {self.current_epoch}: {epoch_at_metrics} -- {epoch_bond_metrics}")   
 
+    @torch.no_grad()
     def validation_step(self, data, i):
         dense_data, node_mask = utils.to_dense(data.x, data.edge_index, data.edge_attr, data.batch)
         dense_data = dense_data.mask(node_mask)
@@ -148,6 +149,72 @@ class GraphJointDiffuser(pl.LightningModule):
         self.val_E_kl.reset()
         self.val_X_logp.reset()
         self.val_E_logp.reset()
+    
+    def on_validation_epoch_end(self) -> None:
+        metrics = [self.val_nll.compute(), self.val_X_kl.compute() * self.T, self.val_E_kl.compute() * self.T,
+                   self.val_X_logp.compute(), self.val_E_logp.compute()]
+        if wandb.run:
+            wandb.log({"val/epoch_NLL": metrics[0],
+                       "val/X_kl": metrics[1],
+                       "val/E_kl": metrics[2],
+                       "val/X_logp": metrics[3],
+                       "val/E_logp": metrics[4]}, commit=False)
+
+        self.print(f"Epoch {self.current_epoch}: Val NLL {metrics[0] :.2f} -- Val Node type KL {metrics[1] :.2f} -- ",
+                   f"Val Edge type KL: {metrics[2] :.2f}")
+
+        # Log val nll with default Lightning logger, so it can be monitored by checkpoint callback
+        val_nll = metrics[0]
+        self.log("val/epoch_NLL", val_nll, sync_dist=True)
+
+        if val_nll < self.best_val_nll:
+            self.best_val_nll = val_nll
+        self.print('Val loss: %.4f \t Best val loss:  %.4f\n' % (val_nll, self.best_val_nll))
+
+        self.val_counter += 1
+        self.print("Done validating.")
+    
+    @torch.no_grad()
+    def test_step(self, data, i):
+        dense_data, node_mask = utils.to_dense(data.x, data.edge_index, data.edge_attr, data.batch)
+        dense_data = dense_data.mask(node_mask)
+        noisy_data = self.apply_noise(dense_data.X, dense_data.E, data.y, node_mask)
+        extra_data = self.compute_extra_data(noisy_data)
+        pred = self.forward(noisy_data, extra_data, node_mask)
+        nll = self.compute_val_loss(pred, noisy_data, dense_data.X, dense_data.E, data.y, node_mask, test=True)
+
+        return {'loss': nll}
+    
+    def on_test_epoch_start(self) -> None:
+        self.print("Starting test...")
+        self.test_nll.reset()
+        self.test_X_kl.reset()
+        self.test_E_kl.reset()
+        self.test_X_logp.reset()
+        self.test_E_logp.reset()
+        if self.local_rank == 0:
+            utils.setup_wandb(self.cfg)
+    
+    def on_test_epoch_end(self) -> None:
+        """ Measure likelihood on a test set and compute stability metrics. """
+        metrics = [self.test_nll.compute(), self.test_X_kl.compute(), self.test_E_kl.compute(),
+                   self.test_X_logp.compute(), self.test_E_logp.compute()]
+        if wandb.run:
+            wandb.log({"test/epoch_NLL": metrics[0],
+                       "test/X_kl": metrics[1],
+                       "test/E_kl": metrics[2],
+                       "test/X_logp": metrics[3],
+                       "test/E_logp": metrics[4]}, commit=False)
+
+        self.print(f"Epoch {self.current_epoch}: Test NLL {metrics[0] :.2f} -- Test Node type KL {metrics[1] :.2f} -- ",
+                   f"Test Edge type KL: {metrics[2] :.2f}")
+
+        test_nll = metrics[0]
+        if wandb.run:
+            wandb.log({"test/epoch_NLL": test_nll}, commit=False)
+
+        self.print(f'Test loss: {test_nll :.4f}')
+        self.print("Done testing.")
 
     def apply_noise(self, X, E, y, node_mask):
         """ Sample noise and apply it to the data. """
@@ -175,7 +242,7 @@ class GraphJointDiffuser(pl.LightningModule):
         probE = E @ Qtb.E.unsqueeze(1)  # (bs, n, n, de)
         sampled_t = diffusion_utils.sample_discrete_features(probX=probX, probE=probE, node_mask=node_mask)
 
-        X_t = F.one_hot(sampled_t.X, num_classes=self.Xcdim)
+        X_t = F.one_hot(sampled_t.X, num_classes=self.Xcdim_output)
         E_t = F.one_hot(sampled_t.E, num_classes=self.Edim_output)
         assert (X.shape == X_t.shape) and (E.shape == E_t.shape)
 
@@ -209,22 +276,21 @@ class GraphJointDiffuser(pl.LightningModule):
         # Compute L0 term : -log p (X, E, y | z_0) = reconstruction loss
         prob0 = self.reconstruction_logp(t, X, E, node_mask)
 
-        # loss_term_0 = self.val_X_logp(X * prob0.X.log()) + self.val_E_logp(E * prob0.E.log())
+        loss_term_0 = self.val_X_logp(X * prob0.X.log()) + self.val_E_logp(E * prob0.E.log())
 
-        # # Combine terms
-        # nlls = - log_pN + kl_prior + loss_all_t - loss_term_0
-        # assert len(nlls.shape) == 1, f'{nlls.shape} has more than only batch dim.'
+        # Combine terms
+        nlls = - log_pN + kl_prior + loss_all_t - loss_term_0
+        assert len(nlls.shape) == 1, f'{nlls.shape} has more than only batch dim.'
 
-        # # Update NLL metric object and return batch nll
-        # nll = (self.test_nll if test else self.val_nll)(nlls)        # Average over the batch
+        # Update NLL metric object and return batch nll
+        nll = (self.test_nll if test else self.val_nll)(nlls)        # Average over the batch
 
-        # if wandb.run:
-        #     wandb.log({"kl prior": kl_prior.mean(),
-        #                "Estimator loss terms": loss_all_t.mean(),
-        #                "log_pn": log_pN.mean(),
-        #                "loss_term_0": loss_term_0,
-        #                'batch_test_nll' if test else 'val_nll': nll}, commit=False)
-        nll = 0
+        if wandb.run:
+            wandb.log({"kl prior": kl_prior.mean(),
+                       "Estimator loss terms": loss_all_t.mean(),
+                       "log_pn": log_pN.mean(),
+                       "loss_term_0": loss_term_0,
+                       'batch_test_nll' if test else 'val_nll': nll}, commit=False)
         return nll
     
     def kl_prior(self, X, E, node_mask):
@@ -296,14 +362,15 @@ class GraphJointDiffuser(pl.LightningModule):
         # Compute noise values for t = 0.
         t_zeros = torch.zeros_like(t)
         beta_0 = self.noise_schedule(t_zeros)
-        Q0 = self.transition_model.get_Qt(beta_t=beta_0, device=self.device)
+        # qx (bs, dx, dx_c, dx_c), qe (bs, de, de), qy (bs, dy, dy)
+        Q0 = self.transition_model.get_Qt(beta_t=beta_0, device=self.device) 
 
-        probX0 = X @ Q0.X  # (bs, n, dx_out)
+        probX0 = (X.permute(0, 2, 1, 3) @ Q0.X).permute(0, 2, 1, 3)  # (bs, n, dx, dx_c)
         probE0 = E @ Q0.E.unsqueeze(1)  # (bs, n, n, de_out)
 
         sampled0 = diffusion_utils.sample_discrete_features(probX=probX0, probE=probE0, node_mask=node_mask)
 
-        X0 = F.one_hot(sampled0.X, num_classes=self.Xdim_output).float()
+        X0 = F.one_hot(sampled0.X, num_classes=self.Xcdim_output).float()
         E0 = F.one_hot(sampled0.E, num_classes=self.Edim_output).float()
         y0 = sampled0.y
         assert (X.shape == X0.shape) and (E.shape == E0.shape)
@@ -322,7 +389,7 @@ class GraphJointDiffuser(pl.LightningModule):
         proby0 = F.softmax(pred0.y, dim=-1)
 
         # Set masked rows to arbitrary values that don't contribute to loss
-        probX0[~node_mask] = torch.ones(self.Xdim_output).type_as(probX0)
+        probX0[~node_mask] = torch.ones(self.Xcdim_output).type_as(probX0)
         probE0[~(node_mask.unsqueeze(1) * node_mask.unsqueeze(2))] = torch.ones(self.Edim_output).type_as(probE0)
 
         diag_mask = torch.eye(probE0.size(1)).type_as(probE0).bool()

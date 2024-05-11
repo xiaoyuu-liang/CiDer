@@ -34,6 +34,7 @@ Thumbs.db
 
 # model checkpoint
 /gnn_checkpoints/
+/checkpoints/
 
 # Log files
 *.log

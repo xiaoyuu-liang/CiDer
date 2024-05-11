@@ -6,10 +6,7 @@ import warnings
 import logging
 import hydra
 import os
-import psutil
 from omegaconf import DictConfig
-from pympler import asizeof
-from memory_profiler import profile
 
 import torch.nn.functional as F
 from pytorch_lightning import Trainer
@@ -88,7 +85,7 @@ def main(cfg: DictConfig):
     
     callbacks = []
     name = cfg.general.name
-    use_gpu = cfg.general.gpus > 0 and torch.cuda.is_available()
+    use_gpu = (isinstance(cfg.general.gpus, str) or cfg.general.gpus > 0) and torch.cuda.is_available()
 
     model = GraphJointDiffuser(cfg, **model_kwargs)
     trainer = Trainer(gradient_clip_val=cfg.train.clip_grad,
@@ -98,13 +95,15 @@ def main(cfg: DictConfig):
                       max_epochs=cfg.train.n_epochs,
                       check_val_every_n_epoch=cfg.general.check_val_every_n_epochs,
                       fast_dev_run=cfg.general.name == 'debug',
-                      enable_progress_bar=False,
+                      enable_progress_bar=cfg.train.progress_bar,
                       callbacks=callbacks,
                       log_every_n_steps=50 if name != 'debug' else 1,
                       logger = [])
     print(f"Training {name}")
-    datamodule.train_dataloader()
-    trainer.fit(model, datamodule=datamodule)
+    trainer.fit(model, 
+                train_dataloaders=datamodule.train_dataloader(),
+                val_dataloaders=datamodule.val_dataloader(), 
+                ckpt_path=cfg.general.resume)
         
     
 

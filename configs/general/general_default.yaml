@@ -1,8 +1,8 @@
 # General settings
-name: 'graph-joint-diffuser 0509'      # Warning: 'debug' and 'test' are reserved name that have a special behavior
+name: '0511'      # Warning: 'debug' and 'test' are reserved name that have a special behavior
 
 wandb: 'disabled'             # online | offline | disabled
-gpus: 1                     # Multi-gpu is not implemented on this branch
+gpus: '1, 2, 3'                     # Multi-gpu is not implemented on this branch
 
 
 resume: null            # If resume, path to ckpt file from outputs directory in main directory

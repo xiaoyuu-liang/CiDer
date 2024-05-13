@@ -4,6 +4,7 @@ import numpy as np
 import scipy.sparse as sp
 import torch.nn.functional as F
 
+from tqdm import tqdm
 from torch_geometric.data import Data
 from src.sparse_graph import SparseGraph
 from sklearn.preprocessing import MultiLabelBinarizer, LabelBinarizer
@@ -233,4 +234,23 @@ def visualize_graph(graph: SparseGraph, path='graphs/graph.png',
     nx.draw(G, labels=labels, node_size=node_size, font_size=font_size, font_color='black', edge_color='gray', width=width)
     plt.savefig('graphs/subgraph.png', dpi=dpi)
     plt.show()
+
+
+def classifier_predict(dataloader, classifier, device):
+    """
+    Predict with classifier on egograph dataset.
+    """
+    acc = 0
+    correct = 0
+
+    for data in tqdm(dataloader, desc="Predicting"):
+        x = data.x.argmax(dim=-1).float().to(device)
+        edge_index = data.edge_index.to(device)
+        
+        pred = classifier(x, edge_index)[data.target_node[0]]
+        label = pred.argmax(-1)
+        correct += (label == data.labels[0][data.target_node[0]])
+            
+    acc = correct / len(dataloader)
+    print(f'Accuracy: {acc}')
 

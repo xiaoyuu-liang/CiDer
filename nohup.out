@@ -1,0 +1,126 @@
+Processing...
+Done!
+Processing...
+Done!
+Processing...
+Done!
+downloading and generating subgraphs
+Loaded 2708 graphs
+Dataset sizes: train 1733, val 433, test 542
+Error executing job with overrides: []
+Traceback (most recent call last):
+  File "/home/ubuntu/Documents/Liangxiaoyu/CiDer/denoiser.py", line 113, in main
+    ema_callback = utils.EMA(decay=cfg.train.ema_decay)
+AttributeError: module 'src.model.diffusion.utils' has no attribute 'EMA'
+
+Set the environment variable HYDRA_FULL_ERROR=1 for a complete stack trace.
+/home/ubuntu/anaconda3/envs/digress/lib/python3.9/site-packages/torch/nn/init.py:405: UserWarning: Initializing zero-element tensors is a no-op
+  warnings.warn("Initializing zero-element tensors is a no-op")
+GPU available: True (cuda), used: True
+TPU available: False, using: 0 TPU cores
+IPU available: False, using: 0 IPUs
+HPU available: False, using: 0 HPUs
+Initializing distributed: GLOBAL_RANK: 0, MEMBER: 1/4
+/home/ubuntu/anaconda3/envs/digress/lib/python3.9/site-packages/torch/nn/init.py:405: UserWarning: Initializing zero-element tensors is a no-op
+  warnings.warn("Initializing zero-element tensors is a no-op")
+/home/ubuntu/anaconda3/envs/digress/lib/python3.9/site-packages/torch/nn/init.py:405: UserWarning: Initializing zero-element tensors is a no-op
+  warnings.warn("Initializing zero-element tensors is a no-op")
+Initializing distributed: GLOBAL_RANK: 2, MEMBER: 3/4
+Marginal distribution of the classes: tensor([[0.9941, 0.0059],
+        [0.9878, 0.0122],
+        [0.9742, 0.0258],
+        ...,
+        [0.9978, 0.0022],
+        [0.9760, 0.0240],
+        [0.9956, 0.0044]]) for nodes, tensor([0.9986, 0.0014]) for edges
+Training 0513-EMA
+[2024-05-13 21:21:57,755][torch.distributed.distributed_c10d][INFO] - Added key: store_based_barrier_key:1 to store for rank: 2
+/home/ubuntu/anaconda3/envs/digress/lib/python3.9/site-packages/torch/nn/init.py:405: UserWarning: Initializing zero-element tensors is a no-op
+  warnings.warn("Initializing zero-element tensors is a no-op")
+Initializing distributed: GLOBAL_RANK: 1, MEMBER: 2/4
+Marginal distribution of the classes: tensor([[0.9941, 0.0059],
+        [0.9878, 0.0122],
+        [0.9742, 0.0258],
+        ...,
+        [0.9978, 0.0022],
+        [0.9760, 0.0240],
+        [0.9956, 0.0044]]) for nodes, tensor([0.9986, 0.0014]) for edges
+Training 0513-EMA
+[2024-05-13 21:21:58,284][torch.distributed.distributed_c10d][INFO] - Added key: store_based_barrier_key:1 to store for rank: 1
+Initializing distributed: GLOBAL_RANK: 3, MEMBER: 4/4
+Marginal distribution of the classes: tensor([[0.9941, 0.0059],
+        [0.9878, 0.0122],
+        [0.9742, 0.0258],
+        ...,
+        [0.9978, 0.0022],
+        [0.9760, 0.0240],
+        [0.9956, 0.0044]]) for nodes, tensor([0.9986, 0.0014]) for edges
+Training 0513-EMA
+[2024-05-13 21:21:58,379][torch.distributed.distributed_c10d][INFO] - Added key: store_based_barrier_key:1 to store for rank: 3
+Marginal distribution of the classes: tensor([[0.9941, 0.0059],
+        [0.9878, 0.0122],
+        [0.9742, 0.0258],
+        ...,
+        [0.9978, 0.0022],
+        [0.9760, 0.0240],
+        [0.9956, 0.0044]]) for nodes, tensor([0.9986, 0.0014]) for edges
+Training 0513-EMA
+[2024-05-13 21:21:58,385][torch.distributed.distributed_c10d][INFO] - Added key: store_based_barrier_key:1 to store for rank: 0
+[2024-05-13 21:21:58,386][torch.distributed.distributed_c10d][INFO] - Rank 0: Completed store-based barrier for key:store_based_barrier_key:1 with 4 nodes.
+----------------------------------------------------------------------------------------------------
+distributed_backend=nccl
+All distributed processes registered. Starting with 4 processes
+----------------------------------------------------------------------------------------------------
+
+[2024-05-13 21:21:58,387][torch.distributed.distributed_c10d][INFO] - Rank 3: Completed store-based barrier for key:store_based_barrier_key:1 with 4 nodes.
+You are using a CUDA device ('NVIDIA GeForce RTX 4090') that has Tensor Cores. To properly utilize them, you should set `torch.set_float32_matmul_precision('medium' | 'high')` which will trade-off precision for performance. For more details, read https://pytorch.org/docs/stable/generated/torch.set_float32_matmul_precision.html#torch.set_float32_matmul_precision
+[2024-05-13 21:21:58,388][torch.distributed.distributed_c10d][INFO] - Rank 1: Completed store-based barrier for key:store_based_barrier_key:1 with 4 nodes.
+[2024-05-13 21:21:58,392][torch.distributed.distributed_c10d][INFO] - Rank 2: Completed store-based barrier for key:store_based_barrier_key:1 with 4 nodes.
+LOCAL_RANK: 2 - CUDA_VISIBLE_DEVICES: [0,1,2,3]
+LOCAL_RANK: 3 - CUDA_VISIBLE_DEVICES: [0,1,2,3]
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0,1,2,3]
+LOCAL_RANK: 1 - CUDA_VISIBLE_DEVICES: [0,1,2,3]
+
+   | Name           | Type                            | Params
+--------------------------------------------------------------------
+0  | train_metrics  | TrainAbstractMetricsDiscrete    | 0     
+1  | val_nll        | NLL                             | 0     
+2  | val_X_kl       | SumExceptBatchKL                | 0     
+3  | val_E_kl       | SumExceptBatchKL                | 0     
+4  | val_X_logp     | SumExceptBatchMetric            | 0     
+5  | val_E_logp     | SumExceptBatchMetric            | 0     
+6  | test_nll       | NLL                             | 0     
+7  | test_X_kl      | SumExceptBatchKL                | 0     
+8  | test_E_kl      | SumExceptBatchKL                | 0     
+9  | test_X_logp    | SumExceptBatchMetric            | 0     
+10 | test_E_logp    | SumExceptBatchMetric            | 0     
+11 | train_loss     | TrainLossDiscrete               | 0     
+12 | noise_schedule | PredefinedNoiseScheduleDiscrete | 0     
+13 | model          | GraphTransformer                | 44.7 M
+--------------------------------------------------------------------
+44.7 M    Trainable params
+0         Non-trainable params
+44.7 M    Total params
+178.810   Total estimated model params size (MB)
+wandb: Currently logged in as: xyuu (xyuuu). Use `wandb login --relogin` to force relogin
+wandb: - Waiting for wandb.init()...wandb: \ Waiting for wandb.init()...wandb: Tracking run with wandb version 0.15.4
+wandb: Run data is saved locally in /home/ubuntu/Documents/Liangxiaoyu/CiDer/wandb/run-20240513_212202-tevk0coy
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run 0513-EMA
+wandb: ⭐️ View project at https://wandb.ai/xyuuu/graph_jiont_diffuser_cora
+wandb: 🚀 View run at https://wandb.ai/xyuuu/graph_jiont_diffuser_cora/runs/tevk0coy
+Using AdamW optimizer
+on fit starting
+Size of the input features 1433 2 2 1
+Size of the output features 1433 2 2 0
+Using AdamW optimizer
+on fit starting
+Using AdamW optimizer
+on fit starting
+Using AdamW optimizer
+on fit starting
+Epoch 0: Val NLL 4813.38 -- Val Node type KL 2480.76 --  Val Edge type KL: 39.12
+Val loss: 4813.3828 	 Best val loss:  4813.3828
+
+Done validating.
+Starting train epoch...

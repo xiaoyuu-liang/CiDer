@@ -256,7 +256,7 @@ def sample_discrete_features(probX, probE, node_mask):
     probE[inverse_edge_mask] = 1 / probE.shape[-1]
     probE[diag_mask.bool()] = 1 / probE.shape[-1]
 
-    probE = probE.reshape(bs * n * n, -1)    # (bs * n * n, de_out)
+    probE = probE.reshape(bs * n * n, -1)    # (bs * n * n, de)
 
     # Sample E
     E_t = probE.multinomial(1).reshape(bs, n, n)   # (bs, n, n)

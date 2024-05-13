@@ -1,10 +1,12 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch_geometric
 import pytorch_lightning as pl
 import time
 import wandb
 import os
+from tqdm import tqdm
 
 from src.model.diffusion.train_metrics import TrainLossDiscrete, NLL, SumExceptBatchKL, SumExceptBatchMetric
 from src.model.diffusion.noise_schedule import PredefinedNoiseScheduleDiscrete, MarginalUniformTransition
@@ -216,14 +218,18 @@ class GraphJointDiffuser(pl.LightningModule):
         self.print(f'Test loss: {test_nll :.4f}')
         self.print("Done testing.")
 
-    def apply_noise(self, X, E, y, node_mask):
+    def apply_noise(self, X, E, y, node_mask, t=None):
         """ Sample noise and apply it to the data. """
 
         # Sample a timestep t.
         # When evaluating, the loss for t=0 is computed separately
-        lowest_t = 0 if self.training else 1
-        t_int = torch.randint(lowest_t, self.T + 1, size=(X.size(0), 1), device=X.device).float()  # (bs, 1)
-        s_int = t_int - 1
+        if t:
+            t_int = torch.full((X.size(0), 1), t, device=X.device).float()
+            s_int = t_int - 1
+        else:
+            lowest_t = 0 if self.training else 1
+            t_int = torch.randint(lowest_t, self.T + 1, size=(X.size(0), 1), device=X.device).float()  # (bs, 1)
+            s_int = t_int - 1
 
         t_float = t_int / self.T
         s_float = s_int / self.T
@@ -397,7 +403,55 @@ class GraphJointDiffuser(pl.LightningModule):
         probE0[diag_mask] = torch.ones(self.Edim_output).type_as(probE0)
 
         return utils.PlaceHolder(X=probX0, E=probE0, y=proby0)
+    
+    @torch.no_grad()
+    def denoised_smoothing(self, dataloader, t, n_samples=100, classifier=None):
+        """
+        t: noise scale defined by timestamp
+        n_samples: number of samples to denoise and smoothing
+        """
+        num_classes = len(self.dataset_info.node_types)
+        acc = 0
+        correct = 0
 
+        for data in tqdm(dataloader, desc="Denoised Smoothing"):
+            votes = torch.zeros((num_classes), dtype=torch.long, device=self.device)
+            for _ in range(n_samples):
+                denoised_graph = self.denoise_Z(data, t)
+                pred = classifier(denoised_graph.x.to(self.device), denoised_graph.edge_index.to(self.device))[denoised_graph.target_node]
+                votes[pred.argmax(-1)] += 1
+            denoised_smoothing_label = votes.argmax(-1)
+            correct += (denoised_smoothing_label == denoised_graph.y)
+        print(correct, len(dataloader))
+        acc = correct / len(dataloader)
+        print(f'Denoised smoothing accuracy: {acc}')
+        
+
+    @torch.no_grad()
+    def denoise_Z(self, data, t):
+        """
+        Receive data and denoise data of noise scale t.
+        """
+        data = data.to(self.device)
+        dense_data, node_mask = utils.to_dense(data.x, data.edge_index, data.edge_attr, data.batch)
+        dense_data = dense_data.mask(node_mask)
+        noisy_data = self.apply_noise(dense_data.X, dense_data.E, data.y, node_mask, t)
+        extra_data = self.compute_extra_data(noisy_data)
+        pred = self.forward(noisy_data, extra_data, node_mask)
+            
+        unnormalized_prob_X = F.softmax(pred.X, dim=-1)
+        unnormalized_prob_X[torch.sum(unnormalized_prob_X, dim=-1) == 0] = 1e-5
+        prob_X = unnormalized_prob_X / torch.sum(unnormalized_prob_X, dim=-1, keepdim=True)  # bs, n, dx, dx_c
+        unnormalized_prob_E = F.softmax(pred.E, dim=-1)
+        unnormalized_prob_E[torch.sum(unnormalized_prob_E, dim=-1) == 0] = 1e-5
+        prob_E = unnormalized_prob_E / torch.sum(unnormalized_prob_E, dim=-1, keepdim=True)  # bs, n, dx, dx_c
+
+        denoised_data = diffusion_utils.sample_discrete_features(probX=prob_X.cpu(), probE=prob_E.cpu(), node_mask=node_mask.cpu())
+        denoised_graph = torch_geometric.data.Data(x=denoised_data.X.squeeze(0).float(), # (n, dx)
+                                                   edge_index=torch.LongTensor(denoised_data.E.squeeze(0).nonzero()).transpose(0, 1), # (2, |E|)
+                                                   y=data.labels[0][data.target_node[0]],
+                                                   target_node=data.target_node[0])
+        return denoised_graph    
     
     def forward(self, noisy_data, extra_data, node_mask):
         X = torch.cat((noisy_data['X_t'], extra_data.X), dim=3).float()

@@ -10,7 +10,7 @@ import torch.nn.functional as F
 from torch_geometric.datasets import Planetoid
 
 from src.model.classifier import GCN, GAT, APPNP, SAGE
-from src.utils import *
+from src.denoiser_utils import *
 
 
 def train_gnn(model: str, dataset: str, seed: int, save_path: str, device: torch.device, 
@@ -58,8 +58,8 @@ seml.setup_logger(ex)
 @ex.config
 def config():
     seed = 42
-    model = 'gat'
-    dataset = 'pubmed'
+    model = 'gcn'
+    dataset = 'cora'
 
 @ex.automain
 def run(seed, model, dataset, _run, _log):  
@@ -70,4 +70,4 @@ def run(seed, model, dataset, _run, _log):
     logging.info(f'Using device {device}')
         
     train_gnn(model=model, dataset=dataset, seed=seed, 
-            save_path=f'checkpoints/{model}_{dataset}.pt', device=device)
+            save_path=f'gnn_checkpoints/{model}_{dataset}.pt', device=device)

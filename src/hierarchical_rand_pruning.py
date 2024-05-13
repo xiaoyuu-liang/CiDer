@@ -5,7 +5,7 @@ import numpy as np
 from typing import Tuple, Union
 
 from src.sparse_graph import SparseGraph, create_subgraph
-from src.utils import load_and_standardize, SpG2PyG
+from src.denoiser_utils import load_and_standardize, SpG2PyG
 
 
 def hierarchical_rand_pruning(graph: SparseGraph, target_node: int, layer_count: list, 

@@ -38,6 +38,7 @@ Thumbs.db
 
 # Log files
 *.log
+*.out
 
 # Other
 *.bak

@@ -1,5 +1,0 @@
-noise_scale: 50
-
-n_samples: 200
-
-classifier_path: 'gnn_checkpoints/gcn_cora.pt'

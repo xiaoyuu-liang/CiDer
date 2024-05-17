@@ -4,6 +4,7 @@ import numpy as np
 import argparse
 import warnings
 import logging
+import matplotlib.pyplot as plt
 
 import torch.nn as nn
 import torch.nn.functional as F
@@ -29,24 +30,40 @@ def train_gnn(model: str, dataset: str, seed: int, save_path: str, device: torch
     print(f'Number of nodes: {graph.num_nodes()}')
 
     data = SpG2PyG(graph, random_seed=seed)
+    label_node_attr = data.x[data.y==7]
+    node_attr = np.array(label_node_attr)
+    print(node_attr.shape)
 
-    # Setup model
-    if model == 'gcn':
-        model = GCN(nfeat=graph.num_node_attr, nhid=16, nclass=graph.num_classes, device=device)
-    elif model == 'gat':
-        model = GAT(nfeat=graph.num_node_attr, nhid=2, heads=8, nclass=graph.num_classes, device=device)
-    elif model == 'appnp':
-        model = APPNP(nfeat=graph.num_node_attr, nhid=16, K=8, alpha=0.15, nclass=graph.num_classes, device=device)
-    elif model == 'sage':
-        model = SAGE(nfeat=graph.num_node_attr, nhid=16, nclass=graph.num_classes, device=device)
-    model.to(device)
+    plt.figure(figsize=(15, 15))
+    # Create a binary heatmap
+    plt.imshow(node_attr, cmap='gray_r', aspect='auto')
+
+    # Set the labels for the x-axis and y-axis
+    plt.ylabel('Node Index')
+    plt.xlabel('Binary Node Attribute')
+
+    # Display the plot
+    plt.savefig('figs/cora_7_attr_binary_heatmap.png', dpi=500, bbox_inches='tight')
+    plt.show()
     
-    # Traing
-    model.fit(data=data) # train with earlystopping
-    model.test() # test
 
-    # Save model
-    torch.save(model.state_dict(), save_path)
+    # # Setup model
+    # if model == 'gcn':
+    #     model = GCN(nfeat=graph.num_node_attr, nhid=16, nclass=graph.num_classes, device=device)
+    # elif model == 'gat':
+    #     model = GAT(nfeat=graph.num_node_attr, nhid=2, heads=8, nclass=graph.num_classes, device=device)
+    # elif model == 'appnp':
+    #     model = APPNP(nfeat=graph.num_node_attr, nhid=16, K=8, alpha=0.15, nclass=graph.num_classes, device=device)
+    # elif model == 'sage':
+    #     model = SAGE(nfeat=graph.num_node_attr, nhid=16, nclass=graph.num_classes, device=device)
+    # model.to(device)
+    
+    # # Traing
+    # model.fit(data=data) # train with earlystopping
+    # model.test() # test
+
+    # # Save model
+    # torch.save(model.state_dict(), save_path)
 
 
 from sacred import Experiment

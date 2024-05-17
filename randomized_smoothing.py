@@ -1,6 +1,7 @@
 from sacred import Experiment
 import seml
 
+
 ex = Experiment()
 seml.setup_logger(ex)
 
@@ -27,11 +28,11 @@ def config():
     n_hidden = 64
     p_dropout = 0.5
 
-    pf_plus_adj = 0.0000
-    pf_minus_adj = 0.0288
+    pf_plus_adj = 0.00
+    pf_minus_adj = 1.00
 
-    pf_plus_att = 0.0004
-    pf_minus_att = 0.0285
+    pf_plus_att = 0.01
+    pf_minus_att = 0.99
 
     n_samples_train = 1
     batch_size_train = 1
@@ -44,7 +45,7 @@ def config():
     conf_alpha = 0.01
     early_stopping = True
 
-    save_dir = 'gnn_checkpoints'
+    save_dir = 'rand_gnn_checkpoints'
 
 
 @ex.automain
@@ -54,6 +55,10 @@ def run(_config, dataset, n_per_class, seed,
         n_samples_train, n_samples_pre_eval, n_samples_eval, mean_softmax, early_stopping,
         batch_size_train, batch_size_eval, save_dir,
         ):
+    import warnings
+    import os
+    warnings.filterwarnings('ignore')
+
     import numpy as np
     import torch
     from src.general_utils import load_and_standardize, get_train_val_test_split, binarize_labels
@@ -65,7 +70,18 @@ def run(_config, dataset, n_per_class, seed,
     from torch_geometric.data import DataLoader as PyGDataLoader
     print(_config)
 
-    save_name = f'rand_{model}_{dataset}'
+    try:
+        # os.makedirs('checkpoints')
+        os.makedirs(save_dir)
+    except OSError:
+        pass
+
+    try:
+        # os.makedirs('checkpoints/' + args.general.name)
+        os.makedirs(f'{save_dir}/{model}_{dataset}')
+    except OSError:
+        pass
+    save_name = f'{save_dir}/{model}_{dataset}/X[{pf_plus_att}-{pf_minus_att}]_E[{pf_plus_adj}-{pf_minus_adj}].pt'
 
     sample_config = {
         'n_samples': n_samples_train,

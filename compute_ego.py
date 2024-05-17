@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+import matplotlib.pyplot as plt
 import pickle
 import hydra
 from omegaconf import DictConfig
@@ -19,9 +20,30 @@ standard = {'make_unweighted': True,
 
 @hydra.main(version_base='1.3', config_path='configs', config_name='config')
 def main(cfg: DictConfig):
-    datamodule = HiRPDataModule(cfg)
-    
-    print(datamodule.test_dataloader().dataset.split_len['test'])
+    dataset_config = cfg["dataset"]
+
+    datamodule = AttributedGraphDataModule(cfg)
+    dataset_infos = AttributedDatasetInfos(datamodule, dataset_config)
+
+    fig, axs = plt.subplots(15, 1, figsize=(15, 30))  # Create a grid of 2 rows and 5 columns
+
+    i = 0
+    for _ in range(15):
+        for data in datamodule.train_dataloader():
+            print(data)
+            break
+        # label_node_attr = data.x.argmax(-1)
+        # node_attr = np.array(label_node_attr)
+        # axs[i].imshow(node_attr, cmap='gray_r', aspect='auto')
+        # i += 1
+        # if i == 15:
+        #     break
+
+    # plt.ylabel('Node Index')
+    # plt.xlabel('Binary Node Attribute')
+    # # Display the plot
+    # plt.savefig('figs/cora_ego_attr_binary_heatmap.png', dpi=500, bbox_inches='tight')
+    # plt.show()
 
 if __name__ == '__main__':
     main()

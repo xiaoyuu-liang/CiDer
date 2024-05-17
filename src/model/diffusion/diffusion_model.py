@@ -435,6 +435,7 @@ class GraphJointDiffuser(pl.LightningModule):
                     votes[i][pred.argmax(-1)] += 1
             labels = votes.argmax(-1)
             correct += (labels == target).sum().item()
+        print(f'Correct: {correct}, Total: {dataloader.dataset.split_len["test"]}')
         acc = correct / dataloader.dataset.split_len['test']
         print(f'Denoised smoothing accuracy: {acc}')
         
@@ -448,6 +449,7 @@ class GraphJointDiffuser(pl.LightningModule):
         dense_data, node_mask = utils.to_dense(data.x, data.edge_index, data.edge_attr, data.batch)
         dense_data = dense_data.mask(node_mask)
         noisy_data = self.apply_noise(dense_data.X, dense_data.E, data.y, node_mask, t)
+        # return noisy_data
         extra_data = self.compute_extra_data(noisy_data)
         pred = self.forward(noisy_data, extra_data, node_mask)
             
@@ -461,17 +463,19 @@ class GraphJointDiffuser(pl.LightningModule):
         denoised_data = diffusion_utils.sample_discrete_features(probX=prob_X.cpu(), probE=prob_E.cpu(), node_mask=node_mask.cpu())
         denoised_graphs = []
         for graph in range(denoised_data.X.size(0)):
-            denoised_graph = torch_geometric.data.Data(x=denoised_data.X[graph].float(), # (n, dx)
-                                                       edge_index=torch.LongTensor(denoised_data.E[graph].nonzero()).transpose(0, 1), # (2, |E|)
-                                                       y=data.labels[graph][data.target_node[graph]],
-                                                       target_node=data.target_node[graph])
+            mask = node_mask[graph].cpu()
+            x = denoised_data.X[graph][mask].float()
+            edge_index = torch.LongTensor(denoised_data.E[graph][mask][:, mask].nonzero()).transpose(0, 1)
+            y = data.labels[graph][data.target_node[graph]]
+            data.target_node[graph]
+
+            denoised_graph = torch_geometric.data.Data(x=x, edge_index=edge_index, y=y, target_node=data.target_node[graph])
             # denoised_graph = torch_geometric.data.Data(x=noisy_data['X_t'][graph].argmax(-1).float().cpu(), # (n, dx)
             #                                            edge_index=torch.LongTensor(noisy_data['E_t'][graph].cpu().argmax(-1).nonzero()).transpose(0, 1), # (2, |E|)
             #                                            y=data.labels[graph][data.target_node[graph]],
             #                                            target_node=data.target_node[graph])
             denoised_graphs.append(denoised_graph)
-        
-        return denoised_graphs    
+        return denoised_graphs
     
     def forward(self, noisy_data, extra_data, node_mask):
         X = torch.cat((noisy_data['X_t'], extra_data.X), dim=3).float()
@@ -499,6 +503,7 @@ class GraphJointDiffuser(pl.LightningModule):
 
         t_int = torch.full((1, 1), t, device=self.device).float()
         t_float = t_int / self.T
+        print(f'noise scale: {t}/{self.T}')
 
         alpha_t_bar = self.noise_schedule.get_alpha_bar(t_normalized=t_float)      # (1, 1)
 
@@ -508,5 +513,5 @@ class GraphJointDiffuser(pl.LightningModule):
 
         X_flip_prob = Qtb.X.squeeze(0).mean(dim=0)
         E_flip_prob = Qtb.E.squeeze(0)
-        print(f'X_p_plus: {X_flip_prob[0][1]:.4f}, X_p_minus: {X_flip_prob[1][0]:.4f}')
-        print(f'E_p_plus: {E_flip_prob[0][1]:.4f}, E_p_minus: {E_flip_prob[1][0]:.4f}')
+        print(f'X_p_plus: {X_flip_prob[0][1]:.2f}, X_p_minus: {X_flip_prob[1][0]:.2f}')
+        print(f'E_p_plus: {E_flip_prob[0][1]:.2f}, E_p_minus: {E_flip_prob[1][0]:.2f}')

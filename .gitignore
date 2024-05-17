@@ -23,6 +23,7 @@ Thumbs.db
 # data files
 /data/
 /graphs/
+/figs/
 /data/raw/
 /data/processed/
 *.pkl
@@ -35,6 +36,7 @@ Thumbs.db
 # model checkpoint
 /gnn_checkpoints/
 /checkpoints/
+/rand_gnn_checkpoints/
 
 # Log files
 *.log

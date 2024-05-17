@@ -30,6 +30,9 @@ class AbstractDataModule(LightningDataset):
     def __getitem__(self, idx):
         return self.train_dataset[idx]
     
+    def train_dataloader(self):
+        return DataLoader(self.train_dataset, batch_size=1, shuffle=False)
+    
     def graph_info(self):
         attr_margin, label_margin, adj_margin = get_marginal(self.train_dataset.graph)
         return attr_margin, label_margin, adj_margin
@@ -83,7 +86,7 @@ class AttributedGraphDataset(InMemoryDataset):
         self.dataset_name = dataset_name
         self.split = split
         self.graph = load_and_standardize(self.file, standard=standard)
-        self.num_graphs = self.graph.num_nodes()
+        self.num_graphs = self.graph.num_nodes() * int(root[-2])
 
         test_len = int(round(self.num_graphs * 0.2))
         train_len = int(round((self.num_graphs - test_len) * 0.8))
@@ -104,7 +107,7 @@ class AttributedGraphDataset(InMemoryDataset):
         print('downloading and generating subgraphs')
         data_list = []
         for idx in range(self.graph.num_nodes()):
-            for hop in [1]:
+            for hop in [1, 2]:
                 egograph = hierarchical_rand_pruning(graph=self.graph, target_node=idx, layer_count=[hop],
                                                      injection_budget=(0, 0), random_state=np.random.RandomState(0))
                 attr_one_hot, _ = get_one_hot(egograph)
@@ -128,8 +131,8 @@ class AttributedGraphDataset(InMemoryDataset):
         g_cpu.manual_seed(0)
 
         indices = torch.randperm(self.num_graphs, generator=g_cpu)
-        train_indices = indices[:self.split.split_len['train']]
-        val_indices = indices[self.split_len['train']:self.split.split_len['train'] + self.split.split_len['val']]
+        train_indices = indices[:self.split_len['train']]
+        val_indices = indices[self.split_len['train']:self.split_len['train'] + self.split_len['val']]
         test_indices = indices[self.split_len['train'] + self.split_len['val']:]
 
         train_data = []

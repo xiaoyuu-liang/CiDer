@@ -105,7 +105,7 @@ class CrossEntropyMetric(Metric):
         self.total_samples += preds.size(0)
 
     def compute(self):
-        return self.total_ce
+        return self.total_ce / self.total_samples
 
 
 class ProbabilityMetric(Metric):

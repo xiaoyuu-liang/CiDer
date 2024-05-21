@@ -3,6 +3,7 @@ torch.cuda.empty_cache()
 import random
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.colors as colors
 import argparse
 import warnings
 import logging
@@ -163,32 +164,39 @@ def main(cfg: DictConfig):
         #                          t=denoiser_config.noise_scale,
         #                          n_samples=denoiser_config.n_samples,
         #                          classifier=classifier)
+
+        # Define a custom color map with 5 colors
+        cmap = colors.ListedColormap(['grey', 'blue', 'white', 'black', 'red'])
+
+        # Define the boundaries for each color
+        bounds = [-2.5, -1.5, -0.5, 0.5, 1.5, 2.5]
+        norm = colors.BoundaryNorm(bounds, cmap.N)
         for noise_scale in [0]:
-            fig, axs = plt.subplots(14, 1, figsize=(2, 28))  # Create a grid of 2 rows and 5 columns
+            fig, axs = plt.subplots(7, 30, figsize=(50, 12))
             i = 0
             l = 0
-            li = 0
             for data in datamodule.train_dataloader():
                 if data.labels[0][data.target_node[0]] == l:
                     # noisy_data = model.denoise_Z(data, noise_scale)
                     # label_node_attr = noisy_data['E_t'].squeeze(0).argmax(-1).cpu()
-                    adj = np.zeros((data.x.shape[0], data.x.shape[0]))
-                    adj[data.edge_index[0], data.edge_index[1]] = 1
-                    label_node_attr = adj
-                    node_attr = np.array(label_node_attr)
-                    axs[i].imshow(node_attr, cmap='gray_r', aspect='auto')
-                    i += 1
-                    if i == 14:
-                        break
+
+                    # Initialize the adjacency matrix with -1 for nodes with the same label and 0 for nodes with different labels
+                    adj = np.where(np.equal.outer(data.labels[0], data.labels[0]), 0, 0)
+                    # np.fill_diagonal(adj, -2)
+                    # Update the adjacency matrix for each edge
+                    for u, v in zip(*data.edge_index):
+                        adj[u, v] = adj[v, u] = 1 if data.labels[0][u] == data.labels[0][v] else 2
+                        
+                    axs[l][i].imshow(adj, cmap=cmap, norm=norm, aspect='auto')
                     
-                    li += 1
-                    if li == 2:
+                    i += 1
+                    if i == 30:
                         l += 1
-                        li = 0
+                        i = 0
             plt.ylabel('Node Index')
             plt.xlabel('Binary Node Attribute')
             # Display the plot
-            plt.savefig(f'figs/cora_noisy/n{noise_scale}_adj_binary_heatmap.png', dpi=500, bbox_inches='tight')
+            plt.savefig(f'figs/cora_noisy/cora_quadruple_adj/adj_binary_heatmap.png', dpi=500, bbox_inches='tight')
             plt.show()
             print('Done')
 

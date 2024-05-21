@@ -47,23 +47,23 @@ def train_gnn(model: str, dataset: str, seed: int, save_path: str, device: torch
     plt.show()
     
 
-    # # Setup model
-    # if model == 'gcn':
-    #     model = GCN(nfeat=graph.num_node_attr, nhid=16, nclass=graph.num_classes, device=device)
-    # elif model == 'gat':
-    #     model = GAT(nfeat=graph.num_node_attr, nhid=2, heads=8, nclass=graph.num_classes, device=device)
-    # elif model == 'appnp':
-    #     model = APPNP(nfeat=graph.num_node_attr, nhid=16, K=8, alpha=0.15, nclass=graph.num_classes, device=device)
-    # elif model == 'sage':
-    #     model = SAGE(nfeat=graph.num_node_attr, nhid=16, nclass=graph.num_classes, device=device)
-    # model.to(device)
+    # Setup model
+    if model == 'gcn':
+        model = GCN(nfeat=graph.num_node_attr, nhid=16, nclass=graph.num_classes, device=device)
+    elif model == 'gat':
+        model = GAT(nfeat=graph.num_node_attr, nhid=2, heads=8, nclass=graph.num_classes, device=device)
+    elif model == 'appnp':
+        model = APPNP(nfeat=graph.num_node_attr, nhid=16, K=8, alpha=0.15, nclass=graph.num_classes, device=device)
+    elif model == 'sage':
+        model = SAGE(nfeat=graph.num_node_attr, nhid=16, nclass=graph.num_classes, device=device)
+    model.to(device)
     
-    # # Traing
-    # model.fit(data=data) # train with earlystopping
-    # model.test() # test
+    # Traing
+    model.fit(data=data) # train with earlystopping
+    model.test() # test
 
-    # # Save model
-    # torch.save(model.state_dict(), save_path)
+    # Save model
+    torch.save(model.state_dict(), save_path)
 
 
 from sacred import Experiment
@@ -82,7 +82,7 @@ def config():
 def run(seed, model, dataset, _run, _log):  
 
     warnings.filterwarnings("ignore")
-
+    
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     logging.info(f'Using device {device}')
         

@@ -107,7 +107,7 @@ class AttributedGraphDataset(InMemoryDataset):
         print('downloading and generating subgraphs')
         data_list = []
         for idx in range(self.graph.num_nodes()):
-            for hop in [1, 2]:
+            for hop in [1]:
                 egograph = hierarchical_rand_pruning(graph=self.graph, target_node=idx, layer_count=[hop],
                                                      injection_budget=(0, 0), random_state=np.random.RandomState(0))
                 attr_one_hot, _ = get_one_hot(egograph)

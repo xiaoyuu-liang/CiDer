@@ -5,6 +5,7 @@ import torch_geometric
 import pytorch_lightning as pl
 import numpy as np
 import time
+import torch_geometric.data
 import wandb
 import os
 from tqdm import tqdm
@@ -12,6 +13,7 @@ from tqdm import tqdm
 from src.model.diffusion.train_metrics import TrainLossDiscrete, NLL, SumExceptBatchKL, SumExceptBatchMetric
 from src.model.diffusion.noise_schedule import PredefinedNoiseScheduleDiscrete, MarginalUniformTransition
 from src.model.diffusion.transformer_model import GraphTransformer
+from src.model.diffusion.mpnn import MPNN
 from src.model.diffusion import utils
 from src.model.diffusion import diffusion_utils
 
@@ -33,10 +35,12 @@ class GraphJointDiffuser(pl.LightningModule):
         self.Xcdim = input_dims['Xc']
         self.Edim = input_dims['E']
         self.ydim = input_dims['y']
+        self.labeldim = input_dims['label']
         self.Xdim_output = output_dims['X']
         self.Xcdim_output = output_dims['Xc']   
         self.Edim_output = output_dims['E']
         self.ydim_output = output_dims['y']
+        self.labeldim_output = output_dims['label']
         self.node_dist = nodes_dist
 
         self.dataset_info = dataset_infos
@@ -60,13 +64,23 @@ class GraphJointDiffuser(pl.LightningModule):
         self.noise_schedule = PredefinedNoiseScheduleDiscrete(cfg.model.diffusion_noise_schedule,
                                                               timesteps=cfg.model.diffusion_steps)
         
-        self.model = GraphTransformer(n_layers=cfg.model.n_layers,
-                                      input_dims=input_dims,
-                                      hidden_mlp_dims=cfg.model.hidden_mlp_dims,
-                                      hidden_dims=cfg.model.hidden_dims,
-                                      output_dims=output_dims,
-                                      act_fn_in=nn.ReLU(),
-                                      act_fn_out=nn.ReLU())
+        # self.model = GraphTransformer(n_layers=cfg.model.n_layers,
+        #                               input_dims=input_dims,
+        #                               hidden_mlp_dims=cfg.model.hidden_mlp_dims,
+        #                               hidden_dims=cfg.model.hidden_dims,
+        #                               output_dims=output_dims,
+        #                               act_fn_in=nn.ReLU(),
+        #                               act_fn_out=nn.ReLU())
+        self.model = MPNN(input_dims=input_dims,
+                          n_mlp_layers=cfg.model.n_mlp_layers,
+                          hidden_mlp_dims=cfg.model.hidden_mlp_dims,
+                          mlp_dropout=cfg.model.mlp_dropout,
+                          n_gnn_layers=cfg.model.n_gnn_layers,
+                          hidden_gnn_dims=cfg.model.hidden_gnn_dims,
+                          gnn_dropout=cfg.model.gnn_dropout,
+                          output_dims=output_dims,
+                          act_fn_in=nn.ReLU(),
+                          act_fn_out=nn.ReLU())
         
         if cfg.model.transition == 'marginal':
             x_marginals = self.dataset_info.node_attrs
@@ -95,8 +109,10 @@ class GraphJointDiffuser(pl.LightningModule):
     def on_fit_start(self) -> None:
         print("on fit starting")
         # self.train_iterations = len(self.trainer.train_dataloader)
-        self.print("Size of the input features", self.Xdim, self.Xcdim, self.Edim, self.ydim)
-        self.print("Size of the output features", self.Xdim_output, self.Xcdim_output, self.Edim_output, self.ydim_output)
+        self.print(f"Size of the input features:")
+        self.print(f"node_attr={self.Xdim}, node_attr_classes={self.Xcdim}, edge_classes={self.Edim}, time_condition={self.ydim}, node_classes={self.labeldim}")
+        self.print("Size of the output features")
+        self.print(f"node_attr={self.Xdim_output}, node_attr_classes={self.Xcdim_output}, edge_classes={self.Edim_output}, time_condition={self.ydim_output}, node_classes={self.labeldim_output}")
         if self.local_rank == 0:
             utils.setup_wandb(self.cfg)
     
@@ -105,11 +121,14 @@ class GraphJointDiffuser(pl.LightningModule):
             self.print("Found a batch with no edges. Skipping.")
             return
         dense_data, node_mask = utils.to_dense(data.x, data.edge_index, data.edge_attr, data.batch)
+        data_labels = torch.full((dense_data.X.size(0), dense_data.X.size(1)), -1, dtype=torch.long, device=dense_data.X.device)
+        for i, label in enumerate(data.labels):
+            data_labels[i, :len(label)] = torch.LongTensor(label)
         dense_data = dense_data.mask(node_mask)
         X, E = dense_data.X, dense_data.E
         noisy_data = self.apply_noise(X, E, data.y, node_mask)
         extra_data = self.compute_extra_data(noisy_data)
-        pred = self.forward(noisy_data, extra_data, node_mask)
+        pred = self.forward(noisy_data, extra_data, data_labels, node_mask)
         loss = self.train_loss(masked_pred_X=pred.X, masked_pred_E=pred.E, pred_y=pred.y,
                                true_X=X, true_E=E, true_y=data.y,
                                log=i % self.log_every_steps == 0)
@@ -134,17 +153,17 @@ class GraphJointDiffuser(pl.LightningModule):
         # epoch_at_metrics, epoch_bond_metrics = self.train_metrics.log_epoch_metrics()
         # self.print(f"Epoch {self.current_epoch}: {epoch_at_metrics} -- {epoch_bond_metrics}")   
 
-    @torch.no_grad()
-    def validation_step(self, data, i):
-        dense_data, node_mask = utils.to_dense(data.x, data.edge_index, data.edge_attr, data.batch)
-        dense_data = dense_data.mask(node_mask)
-        X, E = dense_data.X, dense_data.E
-        noisy_data = self.apply_noise(X, E, data.y, node_mask)
-        extra_data = self.compute_extra_data(noisy_data)
-        pred = self.forward(noisy_data, extra_data, node_mask)
-        nll = self.compute_val_loss(pred, noisy_data, dense_data.X, dense_data.E, data.y, node_mask, test=False)
+    # @torch.no_grad()
+    # def validation_step(self, data, i):
+    #     dense_data, node_mask = utils.to_dense(data.x, data.edge_index, data.edge_attr, data.batch)
+    #     dense_data = dense_data.mask(node_mask)
+    #     X, E = dense_data.X, dense_data.E
+    #     noisy_data = self.apply_noise(X, E, data.y, node_mask)
+    #     extra_data = self.compute_extra_data(noisy_data)
+    #     pred = self.forward(noisy_data, extra_data, node_mask)
+    #     nll = self.compute_val_loss(pred, noisy_data, dense_data.X, dense_data.E, data.y, node_mask, test=False)
 
-        return {'loss': nll}
+    #     return {'loss': nll}
     
     def on_validation_epoch_start(self) -> None:
         self.val_nll.reset()
@@ -177,16 +196,16 @@ class GraphJointDiffuser(pl.LightningModule):
         self.val_counter += 1
         self.print("Done validating.")
     
-    @torch.no_grad()
-    def test_step(self, data, i):
-        dense_data, node_mask = utils.to_dense(data.x, data.edge_index, data.edge_attr, data.batch)
-        dense_data = dense_data.mask(node_mask)
-        noisy_data = self.apply_noise(dense_data.X, dense_data.E, data.y, node_mask)
-        extra_data = self.compute_extra_data(noisy_data)
-        pred = self.forward(noisy_data, extra_data, node_mask)
-        nll = self.compute_val_loss(pred, noisy_data, dense_data.X, dense_data.E, data.y, node_mask, test=True)
+    # @torch.no_grad()
+    # def test_step(self, data, i):
+    #     dense_data, node_mask = utils.to_dense(data.x, data.edge_index, data.edge_attr, data.batch)
+    #     dense_data = dense_data.mask(node_mask)
+    #     noisy_data = self.apply_noise(dense_data.X, dense_data.E, data.y, node_mask)
+    #     extra_data = self.compute_extra_data(noisy_data)
+    #     pred = self.forward(noisy_data, extra_data, node_mask)
+    #     nll = self.compute_val_loss(pred, noisy_data, dense_data.X, dense_data.E, data.y, node_mask, test=True)
 
-        return {'loss': nll}
+    #     return {'loss': nll}
     
     def on_test_epoch_start(self) -> None:
         self.print("Starting test...")
@@ -365,45 +384,45 @@ class GraphJointDiffuser(pl.LightningModule):
         kl_e = (self.test_E_kl if test else self.val_E_kl)(prob_true.E, torch.log(prob_pred.E))
         return self.T * (kl_x + kl_e)
     
-    def reconstruction_logp(self, t, X, E, node_mask):
-        # Compute noise values for t = 0.
-        t_zeros = torch.zeros_like(t)
-        beta_0 = self.noise_schedule(t_zeros)
-        # qx (bs, dx, dx_c, dx_c), qe (bs, de, de), qy (bs, dy, dy)
-        Q0 = self.transition_model.get_Qt(beta_t=beta_0, device=self.device) 
+    # def reconstruction_logp(self, t, X, E, node_mask):
+    #     # Compute noise values for t = 0.
+    #     t_zeros = torch.zeros_like(t)
+    #     beta_0 = self.noise_schedule(t_zeros)
+    #     # qx (bs, dx, dx_c, dx_c), qe (bs, de, de), qy (bs, dy, dy)
+    #     Q0 = self.transition_model.get_Qt(beta_t=beta_0, device=self.device) 
 
-        probX0 = (X.permute(0, 2, 1, 3) @ Q0.X).permute(0, 2, 1, 3)  # (bs, n, dx, dx_c)
-        probE0 = E @ Q0.E.unsqueeze(1)  # (bs, n, n, de_out)
+    #     probX0 = (X.permute(0, 2, 1, 3) @ Q0.X).permute(0, 2, 1, 3)  # (bs, n, dx, dx_c)
+    #     probE0 = E @ Q0.E.unsqueeze(1)  # (bs, n, n, de_out)
 
-        sampled0 = diffusion_utils.sample_discrete_features(probX=probX0, probE=probE0, node_mask=node_mask)
+    #     sampled0 = diffusion_utils.sample_discrete_features(probX=probX0, probE=probE0, node_mask=node_mask)
 
-        X0 = F.one_hot(sampled0.X, num_classes=self.Xcdim_output).float()
-        E0 = F.one_hot(sampled0.E, num_classes=self.Edim_output).float()
-        y0 = sampled0.y
-        assert (X.shape == X0.shape) and (E.shape == E0.shape)
+    #     X0 = F.one_hot(sampled0.X, num_classes=self.Xcdim_output).float()
+    #     E0 = F.one_hot(sampled0.E, num_classes=self.Edim_output).float()
+    #     y0 = sampled0.y
+    #     assert (X.shape == X0.shape) and (E.shape == E0.shape)
 
-        sampled_0 = utils.PlaceHolder(X=X0, E=E0, y=y0).mask(node_mask)
+    #     sampled_0 = utils.PlaceHolder(X=X0, E=E0, y=y0).mask(node_mask)
 
-        # Predictions
-        noisy_data = {'X_t': sampled_0.X, 'E_t': sampled_0.E, 'y_t': sampled_0.y, 'node_mask': node_mask,
-                      't': torch.zeros(X0.shape[0], 1).type_as(y0)}
-        extra_data = self.compute_extra_data(noisy_data)
-        pred0 = self.forward(noisy_data, extra_data, node_mask)
+    #     # Predictions
+    #     noisy_data = {'X_t': sampled_0.X, 'E_t': sampled_0.E, 'y_t': sampled_0.y, 'node_mask': node_mask,
+    #                   't': torch.zeros(X0.shape[0], 1).type_as(y0)}
+    #     extra_data = self.compute_extra_data(noisy_data)
+    #     pred0 = self.forward(noisy_data, extra_data, node_mask)
 
-        # Normalize predictions
-        probX0 = F.softmax(pred0.X, dim=-1)
-        probE0 = F.softmax(pred0.E, dim=-1)
-        proby0 = F.softmax(pred0.y, dim=-1)
+    #     # Normalize predictions
+    #     probX0 = F.softmax(pred0.X, dim=-1)
+    #     probE0 = F.softmax(pred0.E, dim=-1)
+    #     proby0 = F.softmax(pred0.y, dim=-1)
 
-        # Set masked rows to arbitrary values that don't contribute to loss
-        probX0[~node_mask] = torch.ones(self.Xcdim_output).type_as(probX0)
-        probE0[~(node_mask.unsqueeze(1) * node_mask.unsqueeze(2))] = torch.ones(self.Edim_output).type_as(probE0)
+    #     # Set masked rows to arbitrary values that don't contribute to loss
+    #     probX0[~node_mask] = torch.ones(self.Xcdim_output).type_as(probX0)
+    #     probE0[~(node_mask.unsqueeze(1) * node_mask.unsqueeze(2))] = torch.ones(self.Edim_output).type_as(probE0)
 
-        diag_mask = torch.eye(probE0.size(1)).type_as(probE0).bool()
-        diag_mask = diag_mask.unsqueeze(0).expand(probE0.size(0), -1, -1)
-        probE0[diag_mask] = torch.ones(self.Edim_output).type_as(probE0)
+    #     diag_mask = torch.eye(probE0.size(1)).type_as(probE0).bool()
+    #     diag_mask = diag_mask.unsqueeze(0).expand(probE0.size(0), -1, -1)
+    #     probE0[diag_mask] = torch.ones(self.Edim_output).type_as(probE0)
 
-        return utils.PlaceHolder(X=probX0, E=probE0, y=proby0)
+    #     return utils.PlaceHolder(X=probX0, E=probE0, y=proby0)
     
     @torch.no_grad()
     def denoised_smoothing(self, dataloader, t, n_samples=100, classifier=None):
@@ -440,48 +459,48 @@ class GraphJointDiffuser(pl.LightningModule):
         print(f'Denoised smoothing accuracy: {acc}')
         
 
-    @torch.no_grad()
-    def denoise_Z(self, data, t):
-        """
-        Receive data and denoise data of noise scale t.
-        """
-        data = data.to(self.device)
-        dense_data, node_mask = utils.to_dense(data.x, data.edge_index, data.edge_attr, data.batch)
-        dense_data = dense_data.mask(node_mask)
-        noisy_data = self.apply_noise(dense_data.X, dense_data.E, data.y, node_mask, t)
-        # return noisy_data
-        extra_data = self.compute_extra_data(noisy_data)
-        pred = self.forward(noisy_data, extra_data, node_mask)
+    # @torch.no_grad()
+    # def denoise_Z(self, data, t):
+    #     """
+    #     Receive data and denoise data of noise scale t.
+    #     """
+    #     data = data.to(self.device)
+    #     dense_data, node_mask = utils.to_dense(data.x, data.edge_index, data.edge_attr, data.batch)
+    #     dense_data = dense_data.mask(node_mask)
+    #     noisy_data = self.apply_noise(dense_data.X, dense_data.E, data.y, node_mask, t)
+    #     # return noisy_data
+    #     extra_data = self.compute_extra_data(noisy_data)
+    #     pred = self.forward(noisy_data, extra_data, node_mask)
             
-        unnormalized_prob_X = F.softmax(pred.X, dim=-1)
-        unnormalized_prob_X[torch.sum(unnormalized_prob_X, dim=-1) == 0] = 1e-5
-        prob_X = unnormalized_prob_X / torch.sum(unnormalized_prob_X, dim=-1, keepdim=True)  # bs, n, dx, dx_c
-        unnormalized_prob_E = F.softmax(pred.E, dim=-1)
-        unnormalized_prob_E[torch.sum(unnormalized_prob_E, dim=-1) == 0] = 1e-5
-        prob_E = unnormalized_prob_E / torch.sum(unnormalized_prob_E, dim=-1, keepdim=True)  # bs, n, dx, dx_c
+    #     unnormalized_prob_X = F.softmax(pred.X, dim=-1)
+    #     unnormalized_prob_X[torch.sum(unnormalized_prob_X, dim=-1) == 0] = 1e-5
+    #     prob_X = unnormalized_prob_X / torch.sum(unnormalized_prob_X, dim=-1, keepdim=True)  # bs, n, dx, dx_c
+    #     unnormalized_prob_E = F.softmax(pred.E, dim=-1)
+    #     unnormalized_prob_E[torch.sum(unnormalized_prob_E, dim=-1) == 0] = 1e-5
+    #     prob_E = unnormalized_prob_E / torch.sum(unnormalized_prob_E, dim=-1, keepdim=True)  # bs, n, dx, dx_c
 
-        denoised_data = diffusion_utils.sample_discrete_features(probX=prob_X.cpu(), probE=prob_E.cpu(), node_mask=node_mask.cpu())
-        denoised_graphs = []
-        for graph in range(denoised_data.X.size(0)):
-            mask = node_mask[graph].cpu()
-            x = denoised_data.X[graph][mask].float()
-            edge_index = torch.LongTensor(denoised_data.E[graph][mask][:, mask].nonzero()).transpose(0, 1)
-            y = data.labels[graph][data.target_node[graph]]
-            data.target_node[graph]
+    #     denoised_data = diffusion_utils.sample_discrete_features(probX=prob_X.cpu(), probE=prob_E.cpu(), node_mask=node_mask.cpu())
+    #     denoised_graphs = []
+    #     for graph in range(denoised_data.X.size(0)):
+    #         mask = node_mask[graph].cpu()
+    #         x = denoised_data.X[graph][mask].float()
+    #         edge_index = torch.LongTensor(denoised_data.E[graph][mask][:, mask].nonzero()).transpose(0, 1)
+    #         y = data.labels[graph][data.target_node[graph]]
+    #         data.target_node[graph]
 
-            denoised_graph = torch_geometric.data.Data(x=x, edge_index=edge_index, y=y, target_node=data.target_node[graph])
-            # denoised_graph = torch_geometric.data.Data(x=noisy_data['X_t'][graph].argmax(-1).float().cpu(), # (n, dx)
-            #                                            edge_index=torch.LongTensor(noisy_data['E_t'][graph].cpu().argmax(-1).nonzero()).transpose(0, 1), # (2, |E|)
-            #                                            y=data.labels[graph][data.target_node[graph]],
-            #                                            target_node=data.target_node[graph])
-            denoised_graphs.append(denoised_graph)
-        return denoised_graphs
+    #         denoised_graph = torch_geometric.data.Data(x=x, edge_index=edge_index, y=y, target_node=data.target_node[graph])
+    #         # denoised_graph = torch_geometric.data.Data(x=noisy_data['X_t'][graph].argmax(-1).float().cpu(), # (n, dx)
+    #         #                                            edge_index=torch.LongTensor(noisy_data['E_t'][graph].cpu().argmax(-1).nonzero()).transpose(0, 1), # (2, |E|)
+    #         #                                            y=data.labels[graph][data.target_node[graph]],
+    #         #                                            target_node=data.target_node[graph])
+    #         denoised_graphs.append(denoised_graph)
+    #     return denoised_graphs
     
-    def forward(self, noisy_data, extra_data, node_mask):
+    def forward(self, noisy_data, extra_data, data_labels, node_mask):
         X = torch.cat((noisy_data['X_t'], extra_data.X), dim=3).float()
         E = torch.cat((noisy_data['E_t'], extra_data.E), dim=3).float()
-        y = torch.hstack((noisy_data['y_t'], extra_data.y)).float()
-        return self.model(X, E, y, node_mask)
+        y = torch.hstack((noisy_data['y_t'], extra_data.y)).float()         # y is time conditioning + global feature
+        return self.model(X, E, y, data_labels, node_mask)
     
     def compute_extra_data(self, noisy_data):
         """ At every training step (after adding noise) and step in sampling, compute extra information and append to

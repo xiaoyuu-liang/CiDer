@@ -6,7 +6,7 @@ from torch.nn.parameter import Parameter
 from torch.nn.modules.module import Module
 from torch_geometric.nn import GCNConv
 from .base_model import BaseModel
-from torch_sparse import coalesce, SparseTensor, matmul
+from torch_sparse import SparseTensor
 
 
 class GCN(BaseModel):
@@ -51,6 +51,9 @@ class GCN(BaseModel):
                 adj = SparseTensor.from_edge_index(edge_index, edge_weight, sparse_sizes=2 * x.shape[:1]).t()
                 x = layer(x, adj)
             else:
+                print(x.shape, edge_index.shape)
+                import sys
+                sys.exit()
                 x = layer(x, edge_index)
             if ii != len(self.layers) - 1:
                 if self.with_bn:

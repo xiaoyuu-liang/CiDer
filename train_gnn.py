@@ -32,19 +32,18 @@ def train_gnn(model: str, dataset: str, seed: int, save_path: str, device: torch
     data = SpG2PyG(graph, random_seed=seed)
     label_node_attr = data.x[data.y==7]
     node_attr = np.array(label_node_attr)
-    print(node_attr.shape)
 
-    plt.figure(figsize=(15, 15))
-    # Create a binary heatmap
-    plt.imshow(node_attr, cmap='gray_r', aspect='auto')
+    # plt.figure(figsize=(15, 15))
+    # # Create a binary heatmap
+    # plt.imshow(node_attr, cmap='gray_r', aspect='auto')
 
-    # Set the labels for the x-axis and y-axis
-    plt.ylabel('Node Index')
-    plt.xlabel('Binary Node Attribute')
+    # # Set the labels for the x-axis and y-axis
+    # plt.ylabel('Node Index')
+    # plt.xlabel('Binary Node Attribute')
 
-    # Display the plot
-    plt.savefig('figs/cora_7_attr_binary_heatmap.png', dpi=500, bbox_inches='tight')
-    plt.show()
+    # # Display the plot
+    # plt.savefig('figs/cora_7_attr_binary_heatmap.png', dpi=500, bbox_inches='tight')
+    # plt.show()
     
 
     # Setup model

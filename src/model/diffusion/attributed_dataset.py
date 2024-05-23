@@ -30,8 +30,8 @@ class AbstractDataModule(LightningDataset):
     def __getitem__(self, idx):
         return self.train_dataset[idx]
     
-    def train_dataloader(self):
-        return DataLoader(self.train_dataset, batch_size=1, shuffle=False)
+    # def train_dataloader(self):
+    #     return DataLoader(self.train_dataset, batch_size=1, shuffle=False)
     
     def graph_info(self):
         attr_margin, label_margin, adj_margin = get_marginal(self.train_dataset.graph)
@@ -67,12 +67,14 @@ class AbstractDatasetInfos:
         self.input_dims = {'X': example_batch['x'].size(1),
                            'Xc': example_batch['x'].size(2),
                            'E': example_batch['edge_attr'].size(1),
-                           'y': example_batch['y'].size(1) + 1}      # + 1 due to time conditioning
+                           'y': example_batch['y'].size(1) + 1,     # + 1 due to time conditioning
+                           'label': self.num_classes}      
 
         self.output_dims = {'X': example_batch['x'].size(1),
                             'Xc': example_batch['x'].size(2),
                             'E': example_batch['edge_attr'].size(1),
-                            'y': 0}
+                            'y': 0,
+                            'label': self.num_classes}
 
 
 class AttributedGraphDataset(InMemoryDataset):

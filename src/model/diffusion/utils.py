@@ -220,3 +220,8 @@ def get_marginal(graph):
 
 
     return attr_margin, label_margin, adj_margin
+
+
+# TODO: implement this function
+def to_sparse():
+    pass

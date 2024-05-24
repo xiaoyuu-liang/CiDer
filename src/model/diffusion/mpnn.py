@@ -136,6 +136,10 @@ class GNN(nn.Module):
         x_mask = node_mask.unsqueeze(-1)        # bs, n, 1 
         X = self.mlp_in_X(X) * x_mask
 
+        diag_mask = torch.eye(n)
+        diag_mask = ~diag_mask.type_as(E).bool()
+        diag_mask = diag_mask.unsqueeze(0).unsqueeze(-1).expand(bs, -1, -1, -1)
+
         y = self.mlp_in_y(y)
         _, hy = y.shape
 
@@ -144,10 +148,8 @@ class GNN(nn.Module):
         X_list = [X]
         label_list = [label]
         for layer in self.gnn_layers:
-            X, label = layer(X, E, y, label, node_mask)
-            print(X.shape, label.shape)
-            import sys
-            sys.exit()
+            X, label = layer(X, E, y, label)
+            
             X = X * x_mask
             label = label * x_mask
 
@@ -157,11 +159,25 @@ class GNN(nn.Module):
         y_expand = y.unsqueeze(1).expand(bs, n, hy)
         X = torch.cat(X_list + label_list + [y_expand], dim=-1)
 
-        E = self.gnn_out(X)
-        # TODO: get edge features
-        # # (|E|, hidden_E)
-        # h = h[src] * h[dst]
-        E = self.mlp_out(E)
+        X = self.gnn_out(X)         # (bs, n, he)
+        _, _, he = X.shape
+
+        # get edge features
+        batch = torch.arange(bs, device=E.device).view(-1, 1).repeat(1, n).view(-1)
+
+        adj = E[..., 1]
+        adj_list = [adj[i] for i in range(bs)]
+        adj_block_diag = torch.block_diag(*adj_list)
+        edge_index = torch.nonzero(adj_block_diag).t()
+        src, dst = edge_index
+
+        stack_X = X.view(bs*n, he)
+        edge_attr = stack_X[src] * stack_X[dst]         # (|E|, he)
+        E = utils.to_dense_adj(edge_index=edge_index, batch=batch, edge_attr=edge_attr)
+        
+        new_E = self.mlp_out(E)
+        new_E = (new_E + new_E.transpose(1, 2)) / 2
+        E = new_E * diag_mask
 
         return E
 
@@ -182,25 +198,27 @@ class GNNLayer(nn.Module):
         self.update_label = nn.Sequential(nn.Linear(hidden_dims['label'], hidden_dims['label']), act_fn,
                                           nn.LayerNorm(hidden_dims['label']), nn.Dropout(dropout))
         
-    def forward(self, X, E, y, label, node_mask):
+    def forward(self, X, E, y, label):
         bs, n, hx = X.shape
         _, hy = y.shape
+        _, _, hl = label.shape
+
+        stack_X = X.view(bs*n, hx)
+        stack_label = label.view(bs*n, hl)
 
         adj = E[..., 1]
-        edge_index = torch.nonzero(adj).t()
-        print(edge_index.shape)
-        
-        # TODO: reshape X, edge_index ?
-        pyg_X, edge_index = utils.to_sparse(X, adj, node_mask)
-        pyg_label, _ = utils.to_sparse(label, adj, node_mask)
-
-        X = torch.cat([X, label], dim=-1)
+        adj_list = [adj[i] for i in range(bs)]
+        adj_block_diag = torch.block_diag(*adj_list)
+        edge_index = torch.nonzero(adj_block_diag).t()
+    
+        X = torch.cat([stack_X, stack_label], dim=-1)
         X = self.aggr_X(X, edge_index)
-        label = self.aggr_label(label, edge_index)
+        label = self.aggr_label(stack_label, edge_index)
 
         y_expand = y.unsqueeze(1).expand(bs, n, hy)
-        X = torch.cat([X, label, y_expand], dim=-1)
+        X = torch.cat([X.view(bs, n, hx), label.view(bs, n, hl), y_expand], dim=-1)
 
-        X = self.update_X(X)                    # (bs, n, hx)
-        label = self.update_label(label)        # (bs, n, hl)
+        X = self.update_X(X)                                    # (bs, n, hx)
+        label = self.update_label(label.view(bs, n, hl))        # (bs, n, hl)
+        
         return X, label

@@ -51,9 +51,6 @@ class GCN(BaseModel):
                 adj = SparseTensor.from_edge_index(edge_index, edge_weight, sparse_sizes=2 * x.shape[:1]).t()
                 x = layer(x, adj)
             else:
-                print(x.shape, edge_index.shape)
-                import sys
-                sys.exit()
                 x = layer(x, edge_index)
             if ii != len(self.layers) - 1:
                 if self.with_bn:

@@ -157,13 +157,13 @@ def main(cfg: DictConfig):
 
         classifier.eval()
         classifier.to(device)
-        hirp_datamodule = HiRPDataModule(cfg)
+        # hirp_datamodule = HiRPDataModule(cfg)
         # general_utils.classifier_predict(hirp_datamodule.test_dataloader(), classifier, device)
-        # model.compute_noise(t=denoiser_config.noise_scale)
-        # model.denoised_smoothing(dataloader=datamodule.test_dataloader(),
-        #                          t=denoiser_config.noise_scale,
-        #                          n_samples=denoiser_config.n_samples,
-        #                          classifier=classifier)
+        model.compute_noise(t=denoiser_config.noise_scale)
+        model.denoised_smoothing(dataloader=datamodule.test_dataloader(),
+                                 t=denoiser_config.noise_scale,
+                                 n_samples=denoiser_config.n_samples,
+                                 classifier=classifier)
 
         # # Define a custom color map with 5 colors
         # cmap = colors.ListedColormap(['grey', 'blue', 'white', 'black', 'red'])

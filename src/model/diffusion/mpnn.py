@@ -17,13 +17,13 @@ class MPNN(nn.Module):
 
         self.link_predictor = GNN(input_dims, n_gnn_layers, hidden_gnn_dims, output_dims, gnn_dropout, act_fn_in, act_fn_out)
     
-    def forward(self, X, E, y, label, node_mask):
+    def forward(self, X, E, y, node_mask):
         bs, n, bx, bx_c = X.shape
 
-        X = self.attr_predictor(X, y, label, node_mask)             # (bs, n, bx*bx_c)
+        X = self.attr_predictor(X, y, node_mask)             # (bs, n, bx*bx_c)
         X = X.view(bs, n, bx, bx_c)                                 # (bs, n, bx, bx_c)
 
-        E = self.link_predictor(X, E, y, label, node_mask)
+        E = self.link_predictor(X, E, y, node_mask)
 
         return utils.PlaceHolder(X=X, E=E, y=y).mask(node_mask)
 
@@ -40,18 +40,18 @@ class MLP(nn.Module):
                                       nn.Linear(hidden_dims['X'], hidden_dims['X']), act_fn_in)
         self.mlp_in_y = nn.Sequential(nn.Linear(input_dims['y'], hidden_dims['y']), act_fn_in,
                                       nn.Linear(hidden_dims['y'], hidden_dims['y']), act_fn_in)
-        self.emd_label = nn.Embedding(input_dims['label']+1, hidden_dims['label'])                  # add fake label
+        # self.emd_label = nn.Embedding(input_dims['label']+1, hidden_dims['label'])                  # add fake label
 
         self.mlp_layers = nn.ModuleList([MLPLayer(hidden_dims, act_fn_in, dropout) for _ in range(n_layers)])
 
-        hidden_cat = (n_layers + 1) * (hidden_dims['X'] + hidden_dims['label']) + hidden_dims['y']
+        hidden_cat = (n_layers + 1) * (hidden_dims['X']) + hidden_dims['y']
         self.mlp_out = nn.Sequential(nn.Linear(hidden_cat, hidden_cat), act_fn_out,
                                     nn.Linear(hidden_cat, output_dims['X']*output_dims['Xc']))
 
-    def forward(self, X, y, label, node_mask):
+    def forward(self, X, y, node_mask):
         bs, n, bx, bx_c = X.shape
         X = X.view(bs, n, -1)                   # (bs, n, bx*bx_c)
-        label = label + 1                       # (-1 ~ node_classes) -> (0 ~ node_classes+1)
+        # label = label + 1                       # (-1 ~ node_classes) -> (0 ~ node_classes+1)
         
         x_mask = node_mask.unsqueeze(-1)        # bs, n, 1 
         X = self.mlp_in_X(X) * x_mask
@@ -59,21 +59,21 @@ class MLP(nn.Module):
         y = self.mlp_in_y(y)
         _, hy = y.shape
 
-        label = self.emd_label(label) * x_mask
+        # label = self.emd_label(label) * x_mask
         
         X_list = [X]
-        label_list = [label]
+        # label_list = [label]
         for layer in self.mlp_layers:
-            X, label = layer(X, y, label)
+            X = layer(X, y)
 
             X = X * x_mask
-            label = label * x_mask
+            # label = label * x_mask
 
             X_list.append(X)
-            label_list.append(label)
+            # label_list.append(label)
         
         y_expand = y.unsqueeze(1).expand(bs, n, hy)
-        X = torch.cat(X_list + label_list + [y_expand], dim=-1)
+        X = torch.cat(X_list + [y_expand], dim=-1)
 
         X = self.mlp_out(X)
 
@@ -87,22 +87,22 @@ class MLPLayer(nn.Module):
     def __init__(self, hidden_dims: dict, act_fn: nn.ReLU, dropout: float):
         super().__init__()
         
-        self.update_X = nn.Sequential(nn.Linear(hidden_dims['X'] + hidden_dims['y'] + hidden_dims['label'], hidden_dims['X']), act_fn,
+        self.update_X = nn.Sequential(nn.Linear(hidden_dims['X'] + hidden_dims['y'], hidden_dims['X']), act_fn,
                                       nn.LayerNorm(hidden_dims['X']), nn.Dropout(dropout))
         
-        self.update_label = nn.Sequential(nn.Linear(hidden_dims['label'], hidden_dims['label']), act_fn,
-                                          nn.LayerNorm(hidden_dims['label']), nn.Dropout(dropout))
+        # self.update_label = nn.Sequential(nn.Linear(hidden_dims['label'], hidden_dims['label']), act_fn,
+        #                                   nn.LayerNorm(hidden_dims['label']), nn.Dropout(dropout))
         
-    def forward(self, X, y, label):
+    def forward(self, X, y):
         bs, n, hx = X.shape
         _, hy = y.shape
 
         y_expand = y.unsqueeze(1).expand(bs, n, hy)
-        X = torch.cat([X, label, y_expand], dim=-1)
+        X = torch.cat([X, y_expand], dim=-1)
 
         X = self.update_X(X)                    # (bs, n, hx)
-        label = self.update_label(label)        # (bs, n, hl)
-        return X, label
+        # label = self.update_label(label)        # (bs, n, hl)
+        return X
 
 
 class GNN(nn.Module):
@@ -117,21 +117,21 @@ class GNN(nn.Module):
                                       nn.Linear(hidden_dims['X'], hidden_dims['X']), act_fn_in)
         self.mlp_in_y = nn.Sequential(nn.Linear(input_dims['y'], hidden_dims['y']), act_fn_in,
                                       nn.Linear(hidden_dims['y'], hidden_dims['y']), act_fn_in)
-        self.emd_label = nn.Embedding(input_dims['label']+1, hidden_dims['label'])                  # add fake label
+        # self.emd_label = nn.Embedding(input_dims['label']+1, hidden_dims['label'])                  # add fake label
 
         self.gnn_layers = nn.ModuleList([GNNLayer(hidden_dims, act_fn_in, dropout) for _ in range(n_layers)])
 
-        hidden_cat = (n_layers + 1) * (hidden_dims['X'] + hidden_dims['label']) + hidden_dims['y']
+        hidden_cat = (n_layers + 1) * (hidden_dims['X']) + hidden_dims['y']
         self.gnn_out = nn.Sequential(nn.Linear(hidden_cat, hidden_cat), act_fn_out,
                                     nn.Linear(hidden_cat, hidden_dims['E']))
         
         self.mlp_out = nn.Sequential(nn.Linear(hidden_dims['E'], hidden_dims['E']), act_fn_out,
                                      nn.Linear(hidden_dims['E'], output_dims['E']))
     
-    def forward(self, X, E, y, label, node_mask):
+    def forward(self, X, E, y, node_mask):
         bs, n, bx, bx_c = X.shape
         X = X.view(bs, n, -1)                   # (bs, n, bx*bx_c)
-        label = label + 1                       # (-1 ~ node_classes) -> (0 ~ node_classes+1)
+        # label = label + 1                       # (-1 ~ node_classes) -> (0 ~ node_classes+1)
         
         x_mask = node_mask.unsqueeze(-1)        # bs, n, 1 
         X = self.mlp_in_X(X) * x_mask
@@ -143,21 +143,21 @@ class GNN(nn.Module):
         y = self.mlp_in_y(y)
         _, hy = y.shape
 
-        label = self.emd_label(label)  * x_mask
+        # label = self.emd_label(label)  * x_mask
 
         X_list = [X]
-        label_list = [label]
+        # label_list = [label]
         for layer in self.gnn_layers:
-            X, label = layer(X, E, y, label)
+            X = layer(X, E, y)
             
             X = X * x_mask
-            label = label * x_mask
+            # label = label * x_mask
 
             X_list.append(X)
-            label_list.append(label)
+            # label_list.append(label)
         
         y_expand = y.unsqueeze(1).expand(bs, n, hy)
-        X = torch.cat(X_list + label_list + [y_expand], dim=-1)
+        X = torch.cat(X_list + [y_expand], dim=-1)
 
         X = self.gnn_out(X)         # (bs, n, he)
         _, _, he = X.shape
@@ -189,36 +189,36 @@ class GNNLayer(nn.Module):
     def __init__(self, hidden_dims: dict, act_fn: nn.ReLU, dropout: float):
         super().__init__()
 
-        self.aggr_X = GCNConv(hidden_dims['X'] + hidden_dims['label'], hidden_dims['X'])
-        self.aggr_label = GCNConv(hidden_dims['label'], hidden_dims['label'])
+        self.aggr_X = GCNConv(hidden_dims['X'], hidden_dims['X'])
+        # self.aggr_label = GCNConv(hidden_dims['label'], hidden_dims['label'])
 
-        self.update_X = nn.Sequential(nn.Linear(hidden_dims['X'] + hidden_dims['y'] + hidden_dims['label'], hidden_dims['X']), act_fn,
+        self.update_X = nn.Sequential(nn.Linear(hidden_dims['X'] + hidden_dims['y'], hidden_dims['X']), act_fn,
                                       nn.LayerNorm(hidden_dims['X']), nn.Dropout(dropout))
         
-        self.update_label = nn.Sequential(nn.Linear(hidden_dims['label'], hidden_dims['label']), act_fn,
-                                          nn.LayerNorm(hidden_dims['label']), nn.Dropout(dropout))
+        # self.update_label = nn.Sequential(nn.Linear(hidden_dims['label'], hidden_dims['label']), act_fn,
+        #                                   nn.LayerNorm(hidden_dims['label']), nn.Dropout(dropout))
         
-    def forward(self, X, E, y, label):
+    def forward(self, X, E, y):
         bs, n, hx = X.shape
         _, hy = y.shape
-        _, _, hl = label.shape
+        # _, _, hl = label.shape
 
         stack_X = X.view(bs*n, hx)
-        stack_label = label.view(bs*n, hl)
+        # stack_label = label.view(bs*n, hl)
 
         adj = E[..., 1]
         adj_list = [adj[i] for i in range(bs)]
         adj_block_diag = torch.block_diag(*adj_list)
         edge_index = torch.nonzero(adj_block_diag).t()
     
-        X = torch.cat([stack_X, stack_label], dim=-1)
+        X = torch.cat([stack_X], dim=-1)
         X = self.aggr_X(X, edge_index)
-        label = self.aggr_label(stack_label, edge_index)
+        # label = self.aggr_label(stack_label, edge_index)
 
         y_expand = y.unsqueeze(1).expand(bs, n, hy)
-        X = torch.cat([X.view(bs, n, hx), label.view(bs, n, hl), y_expand], dim=-1)
+        X = torch.cat([X.view(bs, n, hx), y_expand], dim=-1)
 
         X = self.update_X(X)                                    # (bs, n, hx)
-        label = self.update_label(label.view(bs, n, hl))        # (bs, n, hl)
+        # label = self.update_label(label.view(bs, n, hl))        # (bs, n, hl)
         
-        return X, label
+        return X

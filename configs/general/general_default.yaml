@@ -1,13 +1,13 @@
 # General settings
-name: 'test'      # Warning: 'debug' and 'test' are reserved name that have a special behavior
+name: 'mpnn_nolabel_test'      # Warning: 'debug' and 'test' are reserved name that have a special behavior
 
 wandb: 'disabled'                   # online | offline | disabled
 gpus: 4                    # Multi-gpu is not implemented on this branch
 
 resume: null            # If resume, path to ckpt file from outputs directory in main directory
-test_only: checkpoints/mpnn_EP1k/epoch=999.ckpt       # Use relative path
+test_only: checkpoints/mpnn_nolabel/last-v2.ckpt       # Use relative path
 
-check_val_every_n_epochs: 1
+check_val_every_n_epochs: 5
 sample_every_val: 4
 val_check_interval: null
 samples_to_generate: 512       # We advise to set it to 2 x batch_size maximum

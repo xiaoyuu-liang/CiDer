@@ -29,10 +29,10 @@ def config():
     p_dropout = 0.5
 
     pf_plus_adj = 0.00
-    pf_minus_adj = 1.00
+    pf_minus_adj = 0.10
 
-    pf_plus_att = 0.01
-    pf_minus_att = 0.99
+    pf_plus_att = 0.00
+    pf_minus_att = 0.10
 
     n_samples_train = 1
     batch_size_train = 1

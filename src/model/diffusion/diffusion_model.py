@@ -477,9 +477,11 @@ class GraphJointDiffuser(pl.LightningModule):
         data = data.to(self.device)
         dense_data, node_mask = utils.to_dense(data.x, data.edge_index, data.edge_attr, data.batch)
         dense_data = dense_data.mask(node_mask)
+
         data_labels = torch.full((dense_data.X.size(0), dense_data.X.size(1)), -1, dtype=torch.long, device=dense_data.X.device)
         for i, label in enumerate(data.labels):
             data_labels[i, :len(label)] = torch.LongTensor(label)
+            data_labels[i][data.target_node[i]] = -1
         noisy_data = self.apply_noise(dense_data.X, dense_data.E, data.y, node_mask, t)
         # return noisy_data
         extra_data = self.compute_extra_data(noisy_data)

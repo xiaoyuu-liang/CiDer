@@ -4,7 +4,6 @@ import numpy as np
 from src.sparse_graph import SparseGraph
 from torch_sparse import coalesce
 from torch_geometric.data import Data, Batch
-from torchvision import datasets, transforms
 from torch.utils.data import TensorDataset
 
 
@@ -563,45 +562,3 @@ def offset_idx(idx_mat: torch.LongTensor, lens: torch.LongTensor, dim_size: int,
 
     idx_mat[indices, :] += offset[None, :]
     return idx_mat
-
-
-def get_mnist_dataloaders(batch_size, random_seed=0, num_workers=-1, pin_memory=False, root='../dataset_cache', shuffle=True):
-    dataset_dev = datasets.MNIST(
-        root=root, train=True, download=True, transform=transforms.ToTensor())
-    dataset_test = datasets.MNIST(
-        root=root, train=False, download=True, transform=transforms.ToTensor())
-
-    x_dev_bin = (dataset_dev.data > 0.5).float()
-    x_test_bin = (dataset_test.data > 0.5).float()
-   
-    indices = np.arange(len(dataset_dev))
-    nvalid = 5000
-
-    np.random.seed(random_seed)
-    np.random.shuffle(indices)
-
-    train_idx, valid_idx = indices[nvalid:], indices[:nvalid]
-
-
-    dataset_train_bin = TensorDataset(x_dev_bin[train_idx], dataset_dev.targets[train_idx])
-    dataset_val_bin = TensorDataset(x_dev_bin[valid_idx], dataset_dev.targets[valid_idx])
-    dataset_test_bin = TensorDataset(x_test_bin, dataset_test.targets)
-
-    n_images = {'train': len(train_idx),
-                'val': len(valid_idx),
-                'test': len(dataset_test)}
-
-    dataloaders = {}
-    dataloaders['train'] = torch.utils.data.DataLoader(
-        dataset_train_bin, batch_size=batch_size, shuffle=shuffle,
-        num_workers=num_workers, pin_memory=pin_memory)
-    dataloaders['val'] = torch.utils.data.DataLoader(
-        dataset_val_bin, batch_size=batch_size, shuffle=shuffle,
-        num_workers=num_workers, pin_memory=pin_memory)
-
-    dataloaders['test'] = torch.utils.data.DataLoader(
-        dataset_test_bin, batch_size=batch_size, shuffle=False,
-        num_workers=num_workers, pin_memory=pin_memory
-    )
-
-    return dataloaders, n_images

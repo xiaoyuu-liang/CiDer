@@ -172,46 +172,41 @@ def main(cfg: DictConfig):
         classifier.to(device)
         # hirp_datamodule = HiRPDataModule(cfg)
         # general_utils.classifier_predict(hirp_datamodule.test_dataloader(), classifier, device)
-        model.compute_noise(t=denoiser_config.noise_scale)
-        model.denoised_smoothing(dataloader=datamodule.test_dataloader(),
-                                 t=denoiser_config.noise_scale,
-                                 n_samples=denoiser_config.n_samples,
-                                 classifier=classifier)
+        # model.compute_noise(t_X=denoiser_config.attr_noise_scale, t_E=denoiser_config.adj_noise_scale)
+        # model.denoised_smoothing(dataloader=datamodule.test_dataloader(),
+        #                          t_X=denoiser_config.attr_noise_scale,
+        #                          t_E=denoiser_config.adj_noise_scale,
+        #                          n_samples=denoiser_config.n_samples,
+        #                          classifier=classifier)
 
-        # # Define a custom color map with 5 colors
-        # cmap = colors.ListedColormap(['grey', 'blue', 'white', 'black', 'red'])
+        X_p_plus = []
+        X_p_minus = []
+        E_p_plus = []
+        E_p_minus = []
+        for i in range(500+1):
+            flip_probs = model.compute_noise(t_X=i, t_E=i)
 
-        # # Define the boundaries for each color
-        # bounds = [-2.5, -1.5, -0.5, 0.5, 1.5, 2.5]
-        # norm = colors.BoundaryNorm(bounds, cmap.N)
-        # for noise_scale in [0]:
-        #     fig, axs = plt.subplots(7, 30, figsize=(50, 12))
-        #     i = 0
-        #     l = 0
-        #     for data in datamodule.train_dataloader():
-        #         if data.labels[0][data.target_node[0]] == l:
-        #             # noisy_data = model.denoise_Z(data, noise_scale)
-        #             # label_node_attr = noisy_data['E_t'].squeeze(0).argmax(-1).cpu()
+            X_p_plus.append(flip_probs['X_p_plus'])
+            X_p_minus.append(flip_probs['X_p_minus'])
+            E_p_plus.append(flip_probs['E_p_plus'])
+            E_p_minus.append(flip_probs['E_p_minus'])
+        
+        X_p_plus = np.stack([tensor.numpy() for tensor in X_p_plus])
+        X_p_minus = np.stack([tensor.numpy() for tensor in X_p_minus])
+        E_p_plus = np.stack([tensor.numpy() for tensor in E_p_plus])
+        E_p_minus = np.stack([tensor.numpy() for tensor in E_p_minus])
+        
+        plt.plot(X_p_plus, label='X_p_plus')
+        plt.plot(X_p_minus, label='X_p_minus')
+        plt.plot(E_p_plus, label='E_p_plus')
+        plt.plot(E_p_minus, label='E_p_minus')
 
-        #             # Initialize the adjacency matrix with -1 for nodes with the same label and 0 for nodes with different labels
-        #             adj = np.where(np.equal.outer(data.labels[0], data.labels[0]), 0, 0)
-        #             # np.fill_diagonal(adj, -2)
-        #             # Update the adjacency matrix for each edge
-        #             for u, v in zip(*data.edge_index):
-        #                 adj[u, v] = adj[v, u] = 1 if data.labels[0][u] == data.labels[0][v] else 2
-                        
-        #             axs[l][i].imshow(adj, cmap=cmap, norm=norm, aspect='auto')
-                    
-        #             i += 1
-        #             if i == 30:
-        #                 l += 1
-        #                 i = 0
-        #     plt.ylabel('Node Index')
-        #     plt.xlabel('Binary Node Attribute')
-        #     # Display the plot
-        #     plt.savefig(f'figs/cora_noisy/cora_quadruple_adj/adj_binary_heatmap.png', dpi=500, bbox_inches='tight')
-        #     plt.show()
-        #     print('Done')
+        plt.legend()  # This will add a legend using the labels from the plot calls
+        plt.savefig(f'figs/flip_probs.png', dpi=500)
+        plt.show()
+            
+
+        
 
 
 if __name__ == '__main__':

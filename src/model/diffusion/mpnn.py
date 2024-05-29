@@ -18,13 +18,15 @@ class MPNN(nn.Module):
         self.link_predictor = GNN(input_dims, n_gnn_layers, hidden_gnn_dims, output_dims, gnn_dropout, act_fn_in, act_fn_out)
     
     def forward(self, X, E, y, node_mask):
-        print(y)
         bs, n, bx, bx_c = X.shape
 
-        X = self.attr_predictor(X, y[0], node_mask)                 # (bs, n, bx*bx_c) t_X
+        t_X = y[:,0].unsqueeze(1)
+        t_E = y[:,1].unsqueeze(1)
+
+        X = self.attr_predictor(X, t_X, node_mask)                 # (bs, n, bx*bx_c)
         X = X.view(bs, n, bx, bx_c)                                 # (bs, n, bx, bx_c)
 
-        E = self.link_predictor(X, E, y[1], node_mask)              # (bs, n, n, be) t_E
+        E = self.link_predictor(X, E, t_E, node_mask)              # (bs, n, n, be)
 
         return utils.PlaceHolder(X=X, E=E, y=y).mask(node_mask)
 
@@ -54,22 +56,14 @@ class MLP(nn.Module):
         
         x_mask = node_mask.unsqueeze(-1)        # bs, n, 1 
         X = self.mlp_in_X(X) * x_mask
-
         y = self.mlp_in_y(y)
         _, hy = y.shape
-
-        # label = self.emd_label(label) * x_mask
         
         X_list = [X]
-        # label_list = [label]
         for layer in self.mlp_layers:
             X = layer(X, y)
-
             X = X * x_mask
-            # label = label * x_mask
-
             X_list.append(X)
-            # label_list.append(label)
         
         y_expand = y.unsqueeze(1).expand(bs, n, hy)
         X = torch.cat(X_list + [y_expand], dim=-1)
@@ -89,9 +83,6 @@ class MLPLayer(nn.Module):
         self.update_X = nn.Sequential(nn.Linear(hidden_dims['X'] + hidden_dims['y'], hidden_dims['X']), act_fn,
                                       nn.LayerNorm(hidden_dims['X']), nn.Dropout(dropout))
         
-        # self.update_label = nn.Sequential(nn.Linear(hidden_dims['label'], hidden_dims['label']), act_fn,
-        #                                   nn.LayerNorm(hidden_dims['label']), nn.Dropout(dropout))
-        
     def forward(self, X, y):
         bs, n, hx = X.shape
         _, hy = y.shape
@@ -100,7 +91,6 @@ class MLPLayer(nn.Module):
         X = torch.cat([X, y_expand], dim=-1)
 
         X = self.update_X(X)                    # (bs, n, hx)
-        # label = self.update_label(label)        # (bs, n, hl)
         return X
 
 
@@ -116,7 +106,6 @@ class GNN(nn.Module):
                                       nn.Linear(hidden_dims['X'], hidden_dims['X']), act_fn_in)
         self.mlp_in_y = nn.Sequential(nn.Linear(input_dims['y'], hidden_dims['y']), act_fn_in,
                                       nn.Linear(hidden_dims['y'], hidden_dims['y']), act_fn_in)
-        # self.emd_label = nn.Embedding(input_dims['label']+1, hidden_dims['label'])                  # add fake label
 
         self.gnn_layers = nn.ModuleList([GNNLayer(hidden_dims, act_fn_in, dropout) for _ in range(n_layers)])
 
@@ -130,7 +119,6 @@ class GNN(nn.Module):
     def forward(self, X, E, y, node_mask):
         bs, n, bx, bx_c = X.shape
         X = X.view(bs, n, -1)                   # (bs, n, bx*bx_c)
-        # label = label + 1                       # (-1 ~ node_classes) -> (0 ~ node_classes+1)
         
         x_mask = node_mask.unsqueeze(-1)        # bs, n, 1 
         X = self.mlp_in_X(X) * x_mask
@@ -142,18 +130,11 @@ class GNN(nn.Module):
         y = self.mlp_in_y(y)
         _, hy = y.shape
 
-        # label = self.emd_label(label)  * x_mask
-
         X_list = [X]
-        # label_list = [label]
         for layer in self.gnn_layers:
             X = layer(X, E, y)
-            
             X = X * x_mask
-            # label = label * x_mask
-
             X_list.append(X)
-            # label_list.append(label)
         
         y_expand = y.unsqueeze(1).expand(bs, n, hy)
         X = torch.cat(X_list + [y_expand], dim=-1)
@@ -197,10 +178,8 @@ class GNNLayer(nn.Module):
     def forward(self, X, E, y):
         bs, n, hx = X.shape
         _, hy = y.shape
-        # _, _, hl = label.shape
 
         stack_X = X.view(bs*n, hx)
-        # stack_label = label.view(bs*n, hl)
 
         adj = E[..., 1]
         adj_list = [adj[i] for i in range(bs)]
@@ -209,12 +188,10 @@ class GNNLayer(nn.Module):
     
         X = torch.cat([stack_X], dim=-1)
         X = self.aggr_X(X, edge_index)
-        # label = self.aggr_label(stack_label, edge_index)
 
         y_expand = y.unsqueeze(1).expand(bs, n, hy)
         X = torch.cat([X.view(bs, n, hx), y_expand], dim=-1)
 
         X = self.update_X(X)                                    # (bs, n, hx)
-        # label = self.update_label(label.view(bs, n, hl))        # (bs, n, hl)
         
         return X

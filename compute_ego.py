@@ -78,3 +78,39 @@ if __name__ == '__main__':
 # node_nums = [ego.num_nodes() for ego in data_list]
 # print(node_nums)
 # print(f'node nums mean: {np.mean(node_nums)}, max: {np.max(node_nums)}, min: {np.min(node_nums)}')
+
+
+# Define a custom color map with 5 colors
+        # cmap = colors.ListedColormap(['grey', 'blue', 'white', 'black', 'red'])
+
+        # # Define the boundaries for each color
+        # bounds = [-2.5, -1.5, -0.5, 0.5, 1.5, 2.5]
+        # norm = colors.BoundaryNorm(bounds, cmap.N)
+        # for noise_scale in [0]:
+        #     fig, axs = plt.subplots(7, 30, figsize=(50, 12))
+        #     i = 0
+        #     l = 0
+        #     for data in datamodule.train_dataloader():
+        #         if data.labels[0][data.target_node[0]] == l:
+        #             # noisy_data = model.denoise_Z(data, noise_scale)
+        #             # label_node_attr = noisy_data['E_t'].squeeze(0).argmax(-1).cpu()
+
+        #             # Initialize the adjacency matrix with -1 for nodes with the same label and 0 for nodes with different labels
+        #             adj = np.where(np.equal.outer(data.labels[0], data.labels[0]), 0, 0)
+        #             # np.fill_diagonal(adj, -2)
+        #             # Update the adjacency matrix for each edge
+        #             for u, v in zip(*data.edge_index):
+        #                 adj[u, v] = adj[v, u] = 1 if data.labels[0][u] == data.labels[0][v] else 2
+                        
+        #             axs[l][i].imshow(adj, cmap=cmap, norm=norm, aspect='auto')
+                    
+        #             i += 1
+        #             if i == 30:
+        #                 l += 1
+        #                 i = 0
+        #     plt.ylabel('Node Index')
+        #     plt.xlabel('Binary Node Attribute')
+        #     # Display the plot
+        #     plt.savefig(f'figs/cora_noisy/cora_quadruple_adj/adj_binary_heatmap.png', dpi=500, bbox_inches='tight')
+        #     plt.show()
+        #     print('Done')

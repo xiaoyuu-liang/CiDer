@@ -244,7 +244,7 @@ class GraphJointDiffuser(pl.LightningModule):
 
         # Sample a timestep t.
         # When evaluating, the loss for t=0 is computed separately
-        if t_X and t_E:
+        if t_X is not None and t_E is not None:
             t_X_int = torch.full((X.size(0), 1), t_X, device=X.device).float()              #(bs, 1)
             s_X_int = t_X_int - 1
             t_E_int = torch.full((X.size(0), 1), t_E, device=X.device).float()
@@ -256,7 +256,7 @@ class GraphJointDiffuser(pl.LightningModule):
             t_E_int = torch.randint(lowest_t, self.T + 1, size=(X.size(0), 1), device=X.device).float()  # (bs, 1)
             s_E_int = t_E_int - 1
         else:
-            return ValueError("t_X and t_E must be both None or both not None.")
+            raise ValueError("t_X and t_E must be both None or both not None.")
 
         t_X_float = t_X_int / self.T
         s_X_float = s_X_int / self.T
@@ -302,7 +302,8 @@ class GraphJointDiffuser(pl.LightningModule):
            node_mask : (bs, n)
            Output: nll (size 1)
        """
-        t = noisy_data['t']
+        t_X = noisy_data['t_X']
+        t_E = noisy_data['t_E']
 
         # 1. Compute node count distribution
         N = node_mask.sum(1).long() # node count (bs,)
@@ -316,7 +317,7 @@ class GraphJointDiffuser(pl.LightningModule):
 
         # 4. Reconstruction loss
         # Compute L0 term : -log p (X, E, y | z_0) = reconstruction loss
-        prob0 = self.reconstruction_logp(t, X, E, node_mask)
+        prob0 = self.reconstruction_logp(t_X, X, E, node_mask)
 
         loss_term_0 = self.val_X_logp(X * prob0.X.log()) + self.val_E_logp(E * prob0.E.log())
 
@@ -376,28 +377,38 @@ class GraphJointDiffuser(pl.LightningModule):
         pred_probs_E = F.softmax(pred.E, dim=-1)
         pred_probs_y = F.softmax(pred.y, dim=-1)
 
-        Qtb = self.transition_model.get_Qt_bar(noisy_data['alpha_t_bar'], self.device)
-        Qsb = self.transition_model.get_Qt_bar(noisy_data['alpha_s_bar'], self.device) # s = t-1
-        Qt = self.transition_model.get_Qt(noisy_data['beta_t'], self.device)
+        Qtb_X = self.transition_model.get_Qt_bar(noisy_data['alpha_t_X_bar'], self.device)
+        Qsb_X = self.transition_model.get_Qt_bar(noisy_data['alpha_s_X_bar'], self.device) # s = t-1
+        Qt_X = self.transition_model.get_Qt(noisy_data['beta_t_X'], self.device)
+
+        Qtb_E = self.transition_model.get_Qt_bar(noisy_data['alpha_t_E_bar'], self.device)
+        Qsb_E = self.transition_model.get_Qt_bar(noisy_data['alpha_s_E_bar'], self.device) # s = t-1
+        Qt_E = self.transition_model.get_Qt(noisy_data['beta_t_E'], self.device)
 
         # Compute distributions to compare with KL
         bs, n, dx, _ = X.shape
-        prob_true = diffusion_utils.posterior_distributions(X=X, E=E, y=y, X_t=noisy_data['X_t'], E_t=noisy_data['E_t'],
-                                                            y_t=noisy_data['y_t'], Qt=Qt, Qsb=Qsb, Qtb=Qtb)
-        prob_true.E = prob_true.E.reshape((bs, n, n, -1))
-        prob_pred = diffusion_utils.posterior_distributions(X=pred_probs_X, E=pred_probs_E, y=pred_probs_y,
+        prob_true_X = diffusion_utils.posterior_distributions(X=X, E=E, y=y, X_t=noisy_data['X_t'], E_t=noisy_data['E_t'],
+                                                            y_t=noisy_data['y_t'], Qt=Qt_X, Qsb=Qsb_X, Qtb=Qtb_X)
+        prob_true_E = diffusion_utils.posterior_distributions(X=X, E=E, y=y, X_t=noisy_data['X_t'], E_t=noisy_data['E_t'],
+                                                            y_t=noisy_data['y_t'], Qt=Qt_E, Qsb=Qsb_E, Qtb=Qtb_E)
+        prob_true_E.E = prob_true_E.E.reshape((bs, n, n, -1))
+
+        prob_pred_X = diffusion_utils.posterior_distributions(X=pred_probs_X, E=pred_probs_E, y=pred_probs_y,
                                                             X_t=noisy_data['X_t'], E_t=noisy_data['E_t'],
-                                                            y_t=noisy_data['y_t'], Qt=Qt, Qsb=Qsb, Qtb=Qtb)
-        prob_pred.E = prob_pred.E.reshape((bs, n, n, -1))
+                                                            y_t=noisy_data['y_t'], Qt=Qt_X, Qsb=Qsb_X, Qtb=Qtb_X)
+        prob_pred_E = diffusion_utils.posterior_distributions(X=pred_probs_X, E=pred_probs_E, y=pred_probs_y,
+                                                            X_t=noisy_data['X_t'], E_t=noisy_data['E_t'],
+                                                            y_t=noisy_data['y_t'], Qt=Qt_E, Qsb=Qsb_E, Qtb=Qtb_E)
+        prob_pred_E.E = prob_pred_E.E.reshape((bs, n, n, -1))
 
         # Reshape and filter masked rows
-        prob_true_X, prob_true_E, prob_pred.X, prob_pred.E = diffusion_utils.mask_distributions(true_X=prob_true.X,
-                                                                                                true_E=prob_true.E,
-                                                                                                pred_X=prob_pred.X,
-                                                                                                pred_E=prob_pred.E,
-                                                                                                node_mask=node_mask)
-        kl_x = (self.test_X_kl if test else self.val_X_kl)(prob_true.X, torch.log(prob_pred.X))
-        kl_e = (self.test_E_kl if test else self.val_E_kl)(prob_true.E, torch.log(prob_pred.E))
+        _, _, prob_pred_X.X, prob_pred_E.E = diffusion_utils.mask_distributions(true_X=prob_true_X.X,
+                                                                                true_E=prob_true_E.E,
+                                                                                pred_X=prob_pred_X.X,
+                                                                                pred_E=prob_pred_E.E,
+                                                                                node_mask=node_mask)
+        kl_x = (self.test_X_kl if test else self.val_X_kl)(prob_true_X.X, torch.log(prob_pred_X.X))
+        kl_e = (self.test_E_kl if test else self.val_E_kl)(prob_true_E.E, torch.log(prob_pred_E.E))
         return self.T * (kl_x + kl_e)
     
     def reconstruction_logp(self, t, X, E, node_mask):
@@ -421,7 +432,7 @@ class GraphJointDiffuser(pl.LightningModule):
 
         # Predictions
         noisy_data = {'X_t': sampled_0.X, 'E_t': sampled_0.E, 'y_t': sampled_0.y, 'node_mask': node_mask,
-                      't': torch.zeros(X0.shape[0], 1).type_as(y0)}
+                      't_X': torch.zeros(X0.shape[0], 1).type_as(y0), 't_E': torch.zeros(X0.shape[0], 1).type_as(y0)}
         extra_data = self.compute_extra_data(noisy_data)
         pred0 = self.forward(noisy_data, extra_data, node_mask)
 
@@ -441,9 +452,10 @@ class GraphJointDiffuser(pl.LightningModule):
         return utils.PlaceHolder(X=probX0, E=probE0, y=proby0)
     
     @torch.no_grad()
-    def denoised_smoothing(self, dataloader, t, n_samples=100, classifier=None):
+    def denoised_smoothing(self, dataloader, t_X, t_E, n_samples=100, classifier=None):
         """
-        t: noise scale defined by timestamp
+        t_X: noise scale for attribute defined by timestamp
+        t_E: noise scale for adjacent defined by timestamp
         n_samples: number of samples to denoise and smoothing
         """
         num_classes = len(self.dataset_info.node_types)
@@ -460,7 +472,7 @@ class GraphJointDiffuser(pl.LightningModule):
 
             votes = torch.zeros((batch_size, num_classes), dtype=torch.long, device=device)
             for _ in range(n_samples):
-                denoised_graphs = self.denoise_Z(data, t)
+                denoised_graphs = self.denoise_Z(data, t_X, t_E)
                 for i in (range(len(denoised_graphs))):
                     x = denoised_graphs[i].x.to(device)
                     edge_index = denoised_graphs[i].edge_index.to(device)
@@ -476,20 +488,14 @@ class GraphJointDiffuser(pl.LightningModule):
         
 
     @torch.no_grad()
-    def denoise_Z(self, data, t):
+    def denoise_Z(self, data, t_X, t_E):
         """
         Receive data and denoise data of noise scale t.
         """
         data = data.to(self.device)
         dense_data, node_mask = utils.to_dense(data.x, data.edge_index, data.edge_attr, data.batch)
         dense_data = dense_data.mask(node_mask)
-        # get data labels
-        # data_labels = torch.full((dense_data.X.size(0), dense_data.X.size(1)), -1, dtype=torch.long, device=dense_data.X.device)
-        # for i, label in enumerate(data.labels):
-        #     data_labels[i, :len(label)] = torch.LongTensor(label)
-        #     data_labels[i][data.target_node[i]] = -1
-        noisy_data = self.apply_noise(dense_data.X, dense_data.E, data.y, node_mask, t)
-        # return noisy_data
+        noisy_data = self.apply_noise(dense_data.X, dense_data.E, data.y, node_mask, t_X, t_E)
         extra_data = self.compute_extra_data(noisy_data)
         pred = self.forward(noisy_data, extra_data, node_mask)
             
@@ -562,3 +568,5 @@ class GraphJointDiffuser(pl.LightningModule):
         E_flip_prob = Qtb_E.E.squeeze(0)
         print(f'X_p_plus: {X_flip_prob[0][1]:.2f}, X_p_minus: {X_flip_prob[1][0]:.2f}')
         print(f'E_p_plus: {E_flip_prob[0][1]:.2f}, E_p_minus: {E_flip_prob[1][0]:.2f}')
+        return {'X_p_plus': X_flip_prob[0][1], 'X_p_minus': X_flip_prob[1][0],
+                'E_p_plus': E_flip_prob[0][1], 'E_p_minus': E_flip_prob[1][0]}

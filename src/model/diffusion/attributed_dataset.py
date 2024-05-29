@@ -284,7 +284,7 @@ class HiRPDataModule(AbstractDataModule):
         self.inner = self.test_dataset
     
     def test_dataloader(self):
-        return DataLoader(self.inner, batch_size=1)
+        return DataLoader(self.inner, batch_size=self.cfg.train.batch_size if 'debug' not in self.cfg.general.name else 1)
 
     def __getitem__(self, item):
         return self.inner[item]

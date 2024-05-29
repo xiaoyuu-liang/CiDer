@@ -39,7 +39,7 @@ def predict_smooth_gnn(attr_idx, edge_idx, sample_config, model, n, d, nc, batch
         assert n_samples % batch_size == 0
         nbatches = n_samples // batch_size
 
-        for _ in tqdm(range(batch_size)):
+        for _ in tqdm(range(n_samples)):
             attr_idx_batch, edge_idx_batch = sample_multiple_graphs(
                     attr_idx=attr_idx, edge_idx=edge_idx,
                     sample_config=sample_config, n=n, d=d, nsamples=1)

@@ -24,15 +24,15 @@ def config():
     lr = 1e-3
     weight_decay = 1e-3
 
-    model = 'gcn'
+    model = 'sage'
     n_hidden = 64
     p_dropout = 0.5
 
     pf_plus_adj = 0.00
-    pf_minus_adj = 0.10
+    pf_minus_adj = 0.66
 
-    pf_plus_att = 0.00
-    pf_minus_att = 0.10
+    pf_plus_att = 0.01
+    pf_minus_att = 0.65
 
     n_samples_train = 1
     batch_size_train = 1
@@ -182,10 +182,8 @@ def run(_config, dataset, n_per_class, seed,
     mean_max_ra_loup = (grid_lower >= grid_upper)[:, :, 0].argmin(1).mean()
     mean_max_rd_loup = (grid_lower >= grid_upper)[:, 0, :].argmin(1).mean()
 
-
     run_id = _config['overwrite']
     db_collection = _config['db_collection']
-
     
     torch.save(model.state_dict(), save_name)
 

@@ -1,5 +1,6 @@
-noise_scale: 200
+noise_scale: 300
 
 n_samples: 100
 
-classifier_path: 'gnn_checkpoints/gcn_cora.pt'
+classifier: 'sage'
+classifier_path: 'gnn_checkpoints/sage_cora.pt'

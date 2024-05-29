@@ -1,8 +1,8 @@
 # General settings
-name: 'mpnn_nolabel_test'      # Warning: 'debug' and 'test' are reserved name that have a special behavior
+name: 'mpnn_nolabel_lrs_test'      # Warning: 'debug' and 'test' are reserved name that have a special behavior
 
 wandb: 'disabled'                   # online | offline | disabled
-gpus: 4                    # Multi-gpu is not implemented on this branch
+gpus: '1'                    # Multi-gpu is not implemented on this branch
 
 resume: null            # If resume, path to ckpt file from outputs directory in main directory
 test_only: checkpoints/mpnn_nolabel/last-v2.ckpt       # Use relative path

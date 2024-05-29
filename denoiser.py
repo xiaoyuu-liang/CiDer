@@ -152,7 +152,20 @@ def main(cfg: DictConfig):
     else: # predict
         print('denoise with graph joint diffuser')
         _, model = get_resume(cfg, model_kwargs)
-        classifier = GCN(nfeat=len(dataset_infos.node_attrs), nhid=16, nclass=len(dataset_infos.node_types), device=device)
+        
+        classifier_name = denoiser_config.classifier
+        nfeat = len(dataset_infos.node_attrs)
+        nclass = len(dataset_infos.node_types)
+        # Setup model
+        if classifier_name == 'gcn':
+            classifier = GCN(nfeat=nfeat, nhid=16, nclass=nclass, device=device)
+        elif classifier_name == 'gat':
+            classifier = GAT(nfeat=nfeat, nhid=2, heads=8, nclass=nclass, device=device)
+        elif classifier_name == 'appnp':
+            classifier = APPNP(nfeat=nfeat, nhid=16, K=8, alpha=0.15, nclass=nclass, device=device)
+        elif classifier_name == 'sage':
+            classifier = SAGE(nfeat=nfeat, nhid=16, nclass=nclass, device=device)
+        classifier.to(device)
         classifier.load_state_dict(torch.load(denoiser_config.classifier_path))
 
         classifier.eval()

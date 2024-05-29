@@ -55,7 +55,6 @@ class MLP(nn.Module):
         
         x_mask = node_mask.unsqueeze(-1)        # bs, n, 1 
         X = self.mlp_in_X(X) * x_mask
-
         y = self.mlp_in_y(y)
         _, hy = y.shape
 

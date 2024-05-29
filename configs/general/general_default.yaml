@@ -1,11 +1,11 @@
 # General settings
-name: 'test'      # Warning: 'debug' and 'test' are reserved name that have a special behavior
+name: 'debug'      # Warning: 'debug' and 'test' are reserved name that have a special behavior
 
 wandb: 'disabled'                   # online | offline | disabled
-gpus: 4                    # Multi-gpu is not implemented on this branch
+gpus: 1                    # Multi-gpu is not implemented on this branch
 
 resume: null            # If resume, path to ckpt file from outputs directory in main directory
-test_only: checkpoints/mpnn_EP1k/epoch=999.ckpt       # Use relative path
+test_only: null       # Use relative path
 
 check_val_every_n_epochs: 1
 sample_every_val: 4

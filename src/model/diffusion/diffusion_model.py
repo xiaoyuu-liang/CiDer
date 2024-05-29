@@ -105,10 +105,11 @@ class GraphJointDiffuser(pl.LightningModule):
         print('Using AdamW optimizer')
         optimizer = torch.optim.AdamW(self.parameters(), lr=self.cfg.train.lr, amsgrad=True,
                                       weight_decay=self.cfg.train.weight_decay)
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', 
-                                                               factor=self.cfg.train.shceduler_factor, 
-                                                               patience=self.cfg.train.shceduler_patience)
-        return {"optimizer": optimizer, "lr_scheduler": scheduler, "monitor": "val/epoch_NLL"}
+        # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', 
+        #                                                        factor=self.cfg.train.shceduler_factor, 
+        #                                                        patience=self.cfg.train.shceduler_patience)
+        # return {"optimizer": optimizer, "lr_scheduler": scheduler, "monitor": "val/epoch_NLL"}
+        return optimizer
     
     def on_fit_start(self) -> None:
         print("on fit starting")

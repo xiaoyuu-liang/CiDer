@@ -63,10 +63,10 @@ def run(_config, dataset, n_per_class, seed,
     import torch
     from src.general_utils import load_and_standardize, get_train_val_test_split, binarize_labels
     from src.model.classifier import GCN, GAT, APPNP, SAGE
-    from src.model.randomizer.training import train_gnn, train_pytorch
-    from src.model.randomizer.prediction import predict_smooth_gnn, predict_smooth_pytorch
-    from src.model.randomizer.cert import binary_certificate, joint_binary_certificate
-    from src.model.randomizer.utils import (accuracy_majority, sample_batch_pyg)
+    from src.model.sparse_randomizer.training import train_gnn, train_pytorch
+    from src.model.sparse_randomizer.prediction import predict_smooth_gnn, predict_smooth_pytorch
+    from src.model.sparse_randomizer.cert import binary_certificate, joint_binary_certificate
+    from src.model.sparse_randomizer.utils import (accuracy_majority, sample_batch_pyg)
     from torch_geometric.data import DataLoader as PyGDataLoader
     print(_config)
 

@@ -12,7 +12,6 @@ from tqdm import tqdm
 
 from src.model.diffusion.train_metrics import TrainLossDiscrete, NLL, SumExceptBatchKL, SumExceptBatchMetric
 from src.model.diffusion.noise_schedule import PredefinedNoiseScheduleDiscrete, MarginalUniformTransition
-from src.model.diffusion.transformer_model import GraphTransformer
 from src.model.diffusion.mpnn import MPNN
 from src.model.diffusion import utils
 from src.model.diffusion import diffusion_utils
@@ -64,13 +63,6 @@ class GraphJointDiffuser(pl.LightningModule):
         self.noise_schedule = PredefinedNoiseScheduleDiscrete(cfg.model.diffusion_noise_schedule,
                                                               timesteps=cfg.model.diffusion_steps)
         
-        # self.model = GraphTransformer(n_layers=cfg.model.n_layers,
-        #                               input_dims=input_dims,
-        #                               hidden_mlp_dims=cfg.model.hidden_mlp_dims,
-        #                               hidden_dims=cfg.model.hidden_dims,
-        #                               output_dims=output_dims,
-        #                               act_fn_in=nn.ReLU(),
-        #                               act_fn_out=nn.ReLU())
         self.model = MPNN(input_dims=input_dims,
                           n_mlp_layers=cfg.model.n_mlp_layers,
                           hidden_mlp_dims=cfg.model.hidden_mlp_dims,
@@ -105,12 +97,12 @@ class GraphJointDiffuser(pl.LightningModule):
         print('Using AdamW optimizer')
         optimizer = torch.optim.AdamW(self.parameters(), lr=self.cfg.train.lr, amsgrad=True,
                                       weight_decay=self.cfg.train.weight_decay)
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', 
-                                                               factor=self.cfg.train.shceduler_factor, 
-                                                               patience=self.cfg.train.shceduler_patience)
+        # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', 
+        #                                                        factor=self.cfg.train.shceduler_factor, 
+        #                                                        patience=self.cfg.train.shceduler_patience)
         # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=self.cfg.train.n_epochs, verbose=True)
-        return {"optimizer": optimizer, "lr_scheduler": scheduler, "monitor": "val/epoch_NLL"}
-        # return optimizer
+        # return {"optimizer": optimizer, "lr_scheduler": scheduler, "monitor": "val/epoch_NLL"}
+        return optimizer
     
     def on_fit_start(self) -> None:
         print("on fit starting")
@@ -127,9 +119,6 @@ class GraphJointDiffuser(pl.LightningModule):
             self.print("Found a batch with no edges. Skipping.")
             return
         dense_data, node_mask = utils.to_dense(data.x, data.edge_index, data.edge_attr, data.batch)
-        # data_labels = torch.full((dense_data.X.size(0), dense_data.X.size(1)), -1, dtype=torch.long, device=dense_data.X.device)
-        # for i, label in enumerate(data.labels):
-        #     data_labels[i, :len(label)] = torch.LongTensor(label)
         dense_data = dense_data.mask(node_mask)
         X, E = dense_data.X, dense_data.E
         noisy_data = self.apply_noise(X, E, data.y, node_mask)
@@ -250,34 +239,46 @@ class GraphJointDiffuser(pl.LightningModule):
         self.print(f'Test loss: {test_nll :.4f}')
         self.print("Done testing.")
 
-    def apply_noise(self, X, E, y, node_mask, t=None):
+    def apply_noise(self, X, E, y, node_mask, t_X=None, t_E=None):
         """ Sample noise and apply it to the data. """
 
         # Sample a timestep t.
         # When evaluating, the loss for t=0 is computed separately
-        if t:
-            t_int = torch.full((X.size(0), 1), t, device=X.device).float()
-            s_int = t_int - 1
-        else:
+        if t_X and t_E:
+            t_X_int = torch.full((X.size(0), 1), t_X, device=X.device).float()              #(bs, 1)
+            s_X_int = t_X_int - 1
+            t_E_int = torch.full((X.size(0), 1), t_E, device=X.device).float()
+            s_E_int = t_E_int - 1
+        elif not t_X and not t_E:
             lowest_t = 0 if self.training else 1
-            t_int = torch.randint(lowest_t, self.T + 1, size=(X.size(0), 1), device=X.device).float()  # (bs, 1)
-            s_int = t_int - 1
+            t_X_int = torch.randint(lowest_t, self.T + 1, size=(X.size(0), 1), device=X.device).float()  # (bs, 1)
+            s_X_int = t_X_int - 1
+            t_E_int = torch.randint(lowest_t, self.T + 1, size=(X.size(0), 1), device=X.device).float()  # (bs, 1)
+            s_E_int = t_E_int - 1
+        else:
+            return ValueError("t_X and t_E must be both None or both not None.")
 
-        t_float = t_int / self.T
-        s_float = s_int / self.T
+        t_X_float = t_X_int / self.T
+        s_X_float = s_X_int / self.T
+        t_E_float = t_E_int / self.T
+        s_E_float = s_E_int / self.T
 
         # beta_t and alpha_s_bar are used for denoising/loss computation
-        beta_t = self.noise_schedule(t_normalized=t_float)                         # (bs, 1)
-        alpha_s_bar = self.noise_schedule.get_alpha_bar(t_normalized=s_float)      # (bs, 1)
-        alpha_t_bar = self.noise_schedule.get_alpha_bar(t_normalized=t_float)      # (bs, 1)
+        beta_t_X = self.noise_schedule(t_normalized=t_X_float)
+        beta_t_E = self.noise_schedule(t_normalized=t_E_float)                         # (bs, 1)
+        alpha_s_X_bar = self.noise_schedule.get_alpha_bar(t_normalized=s_X_float)
+        alpha_s_E_bar = self.noise_schedule.get_alpha_bar(t_normalized=s_E_float)      # (bs, 1)
+        alpha_t_X_bar = self.noise_schedule.get_alpha_bar(t_normalized=t_X_float)
+        alpha_t_E_bar = self.noise_schedule.get_alpha_bar(t_normalized=t_E_float)      # (bs, 1)
 
-        Qtb = self.transition_model.get_Qt_bar(alpha_t_bar, device=self.device)  # (bs, dx, dx_c, dx_c) (bs, de, de)
-        assert (abs(Qtb.X.sum(dim=3) - 1.) < 1e-4).all(), Qtb.X.sum(dim=3) - 1
-        assert (abs(Qtb.E.sum(dim=2) - 1.) < 1e-4).all()
+        Qtb_X = self.transition_model.get_Qt_bar(alpha_t_X_bar, device=self.device)
+        Qtb_E = self.transition_model.get_Qt_bar(alpha_t_E_bar, device=self.device)  # (bs, dx, dx_c, dx_c) (bs, de, de)
+        assert (abs(Qtb_X.X.sum(dim=3) - 1.) < 1e-4).all(), Qtb_X.X.sum(dim=3) - 1
+        assert (abs(Qtb_E.E.sum(dim=2) - 1.) < 1e-4).all()
 
         # Compute transition probabilities
-        probX = (X.permute(0, 2, 1, 3) @ Qtb.X).permute(0, 2, 1, 3)  # (bs, n, dx, dx_c)
-        probE = E @ Qtb.E.unsqueeze(1)  # (bs, n, n, de)
+        probX = (X.permute(0, 2, 1, 3) @ Qtb_X.X).permute(0, 2, 1, 3)  # (bs, n, dx, dx_c)
+        probE = E @ Qtb_E.E.unsqueeze(1)  # (bs, n, n, de)
         sampled_t = diffusion_utils.sample_discrete_features(probX=probX, probE=probE, node_mask=node_mask)
 
         X_t = F.one_hot(sampled_t.X, num_classes=self.Xcdim_output)
@@ -286,8 +287,11 @@ class GraphJointDiffuser(pl.LightningModule):
 
         z_t = utils.PlaceHolder(X=X_t, E=E_t, y=y).type_as(X_t).mask(node_mask)
 
-        noisy_data = {'t_int': t_int, 't': t_float, 'beta_t': beta_t, 'alpha_s_bar': alpha_s_bar,
-                      'alpha_t_bar': alpha_t_bar, 'X_t': z_t.X, 'E_t': z_t.E, 'y_t': z_t.y, 'node_mask': node_mask}
+        noisy_data = {'t_X_int': t_X_int, 't_X': t_X_float, 'beta_t_X': beta_t_X, 
+                      'alpha_s_X_bar': alpha_s_X_bar, 'alpha_t_X_bar': alpha_t_X_bar,
+                      't_E_int': t_E_int, 't_E': t_E_float, 'beta_t_E': beta_t_E, 
+                      'alpha_s_E_bar': alpha_s_E_bar, 'alpha_t_E_bar': alpha_t_E_bar, 
+                      'X_t': z_t.X, 'E_t': z_t.E, 'y_t': z_t.y, 'node_mask': node_mask}
         return noisy_data
     
     def compute_val_loss(self, pred, noisy_data, X, E, y, node_mask, test=False):
@@ -529,25 +533,32 @@ class GraphJointDiffuser(pl.LightningModule):
         extra_E = extra_features.E
         extra_y = extra_features.y
 
-        t = noisy_data['t']
-        extra_y = torch.cat((extra_y, t), dim=1)
+        t_X = noisy_data['t_X']
+        t_E = noisy_data['t_E']
+        extra_y = torch.cat((extra_y, t_X, t_E), dim=1)
 
         return utils.PlaceHolder(X=extra_X, E=extra_E, y=extra_y)
     
-    def compute_noise(self, t):
+    def compute_noise(self, t_X, t_E):
         """ Compute noise for a given time step t. """
 
-        t_int = torch.full((1, 1), t, device=self.device).float()
-        t_float = t_int / self.T
-        print(f'noise scale: {t}/{self.T}')
+        t_X_int = torch.full((1, 1), t_X, device=self.device).float()
+        t_X_float = t_X_int / self.T
+        print(f'attribute noise scale: {t_X}/{self.T}')
 
-        alpha_t_bar = self.noise_schedule.get_alpha_bar(t_normalized=t_float)      # (1, 1)
+        t_E_int = torch.full((1, 1), t_E, device=self.device).float()
+        t_E_float = t_E_int / self.T
+        print(f'adjacent noise scale: {t_E}/{self.T}')
 
-        Qtb = self.transition_model.get_Qt_bar(alpha_t_bar, device=self.device)  # (1, dx, dx_c, dx_c) (1, de, de)
-        assert (abs(Qtb.X.sum(dim=3) - 1.) < 1e-4).all(), Qtb.X.sum(dim=3) - 1
-        assert (abs(Qtb.E.sum(dim=2) - 1.) < 1e-4).all()
+        alpha_t_X_bar = self.noise_schedule.get_alpha_bar(t_normalized=t_X_float)      # (1, 1)
+        alpha_t_E_bar = self.noise_schedule.get_alpha_bar(t_normalized=t_E_float)      # (1, 1)
 
-        X_flip_prob = Qtb.X.squeeze(0).mean(dim=0)
-        E_flip_prob = Qtb.E.squeeze(0)
+        Qtb_X = self.transition_model.get_Qt_bar(alpha_t_X_bar, device=self.device)  # (1, dx, dx_c, dx_c) (1, de, de)
+        Qtb_E = self.transition_model.get_Qt_bar(alpha_t_E_bar, device=self.device)  # (1, dx, dx_c, dx_c) (1, de, de)
+        assert (abs(Qtb_X.X.sum(dim=3) - 1.) < 1e-4).all(), Qtb_X.X.sum(dim=3) - 1
+        assert (abs(Qtb_E.E.sum(dim=2) - 1.) < 1e-4).all()
+
+        X_flip_prob = Qtb_X.X.squeeze(0).mean(dim=0)
+        E_flip_prob = Qtb_E.E.squeeze(0)
         print(f'X_p_plus: {X_flip_prob[0][1]:.2f}, X_p_minus: {X_flip_prob[1][0]:.2f}')
         print(f'E_p_plus: {E_flip_prob[0][1]:.2f}, E_p_minus: {E_flip_prob[1][0]:.2f}')

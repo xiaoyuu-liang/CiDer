@@ -191,10 +191,10 @@ def main(cfg: DictConfig):
             E_p_plus.append(flip_probs['E_p_plus'])
             E_p_minus.append(flip_probs['E_p_minus'])
         
-        X_p_plus = np.stack([tensor.numpy() for tensor in X_p_plus])
-        X_p_minus = np.stack([tensor.numpy() for tensor in X_p_minus])
-        E_p_plus = np.stack([tensor.numpy() for tensor in E_p_plus])
-        E_p_minus = np.stack([tensor.numpy() for tensor in E_p_minus])
+        X_p_plus = np.stack([tensor.cpu().numpy() for tensor in X_p_plus])
+        X_p_minus = np.stack([tensor.cpu().numpy() for tensor in X_p_minus])
+        E_p_plus = np.stack([tensor.cpu().numpy() for tensor in E_p_plus])
+        E_p_minus = np.stack([tensor.cpu().numpy() for tensor in E_p_minus])
         
         plt.plot(X_p_plus, label='X_p_plus')
         plt.plot(X_p_minus, label='X_p_minus')

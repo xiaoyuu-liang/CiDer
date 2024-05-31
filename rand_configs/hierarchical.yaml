@@ -1,0 +1,42 @@
+conf:
+  save: True
+  save_dir: rand_results
+
+hparams:
+  dataset_path: data/
+  fixed_random_seeds_path: data/seeds.pt
+  device: 'cuda'
+  num_seeds: 5
+
+  datatype: "graphs"
+  protected: True
+
+  lr: 0.001
+  weight_decay: 0.0005
+  max_epochs: 1_000
+  early_stopping: 50
+  logging: False
+
+  alpha: 0.01
+  n0: 10        # pre_votes num samples
+  n1: 100       # votes num samples
+
+  smoothing_config:
+    smoothing_distribution: "hierarchical_sparse"
+    append_indicator: True
+    p: 0.8
+    p_plus: 0.00
+    p_minus: 0.35
+  
+  dataset: "cora"
+  in_channels: 1433 
+  out_channels: 7
+
+  arch: "GCN"
+  k_heads: 8
+  k_hops: 8
+  appnp_alpha: 0.15
+  hidden_channels: 8
+  p_dropout: 0.5
+  conv_dropout: 0.2
+  with_skip: False

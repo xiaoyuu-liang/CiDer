@@ -1,7 +1,7 @@
 from typing import List, Union
 import torch
 import numpy as np
-from src.sparse_graph import SparseGraph
+from .sparse_graph import SparseGraph
 from torch_sparse import coalesce
 from torch_geometric.data import Data, Batch
 from torch.utils.data import TensorDataset

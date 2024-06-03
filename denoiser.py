@@ -11,7 +11,7 @@ import hydra
 import os
 import pathlib
 
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.utilities.warnings import PossibleUserWarning
@@ -45,7 +45,7 @@ def get_resume(cfg, model_kwargs):
             new_cfg[category][arg] = cfg[category][arg]
 
     new_cfg.general.resume = resume_path
-    new_cfg.general.name = new_cfg.general.name + '_resume'
+    new_cfg.general.name = new_cfg.general.name + '/test_only'
 
     new_cfg = utils.update_config_with_new_keys(new_cfg, saved_cfg)
     return new_cfg, model
@@ -69,7 +69,7 @@ def get_resume_adaptive(cfg, model_kwargs):
             new_cfg[category][arg] = cfg[category][arg]
 
     new_cfg.general.resume = resume_path
-    new_cfg.general.name = new_cfg.general.name + '_resume'
+    new_cfg.general.name = new_cfg.general.name + '/test_only'
 
     new_cfg = utils.update_config_with_new_keys(new_cfg, saved_cfg)
     return new_cfg, model
@@ -101,13 +101,13 @@ def main(cfg: DictConfig):
     
     callbacks = []
     if cfg.train.save_model:
-        checkpoint_callback = ModelCheckpoint(dirpath=f"checkpoints/{cfg.general.name}",
+        checkpoint_callback = ModelCheckpoint(dirpath=f"checkpoints/{dataset_config['name']}/{cfg.general.name}",
                                               filename='{epoch}',
                                               monitor='val/epoch_NLL',
                                               save_top_k=10,
                                               mode='min',
                                               every_n_epochs=1)
-        last_ckpt_save = ModelCheckpoint(dirpath=f"checkpoints/{cfg.general.name}", filename='last', every_n_epochs=1)
+        last_ckpt_save = ModelCheckpoint(dirpath=f"checkpoints/{dataset_config['name']}/{cfg.general.name}", filename='last', every_n_epochs=1)
         callbacks.append(last_ckpt_save)
         callbacks.append(checkpoint_callback)
 
@@ -172,38 +172,15 @@ def main(cfg: DictConfig):
         classifier.to(device)
         # hirp_datamodule = HiRPDataModule(cfg)
         # general_utils.classifier_predict(hirp_datamodule.test_dataloader(), classifier, device)
-        # model.compute_noise(t_X=denoiser_config.attr_noise_scale, t_E=denoiser_config.adj_noise_scale)
-        # model.denoised_smoothing(dataloader=datamodule.test_dataloader(),
-        #                          t_X=denoiser_config.attr_noise_scale,
-        #                          t_E=denoiser_config.adj_noise_scale,
-        #                          n_samples=denoiser_config.n_samples,
-        #                          classifier=classifier)
-
-        X_p_plus = []
-        X_p_minus = []
-        E_p_plus = []
-        E_p_minus = []
-        for i in range(500+1):
-            flip_probs = model.compute_noise(t_X=i, t_E=i)
-
-            X_p_plus.append(flip_probs['X_p_plus'])
-            X_p_minus.append(flip_probs['X_p_minus'])
-            E_p_plus.append(flip_probs['E_p_plus'])
-            E_p_minus.append(flip_probs['E_p_minus'])
+        hparams = OmegaConf.to_container(denoiser_config)
+        smoothing_config = model.compute_noise(t_X=denoiser_config.attr_noise_scale, t_E=denoiser_config.adj_noise_scale)   
+        hparams['smoothing_config'] = smoothing_config
+        dict_to_save = model.denoised_smoothing(dataloader=datamodule.test_dataloader(),
+                                                classifier=classifier,
+                                                hparams=hparams)
+        general_utils.save_cetrificate(dict_to_save, dataset_config, hparams, f"checkpoints/{dataset_config['name']}/{cfg.general.name}")
         
-        X_p_plus = np.stack([tensor.cpu().numpy() for tensor in X_p_plus])
-        X_p_minus = np.stack([tensor.cpu().numpy() for tensor in X_p_minus])
-        E_p_plus = np.stack([tensor.cpu().numpy() for tensor in E_p_plus])
-        E_p_minus = np.stack([tensor.cpu().numpy() for tensor in E_p_minus])
         
-        plt.plot(X_p_plus, label='X_p_plus')
-        plt.plot(X_p_minus, label='X_p_minus')
-        plt.plot(E_p_plus, label='E_p_plus')
-        plt.plot(E_p_minus, label='E_p_minus')
-
-        plt.legend()  # This will add a legend using the labels from the plot calls
-        plt.savefig(f'figs/flip_probs.png', dpi=500)
-        plt.show()
             
 
         

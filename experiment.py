@@ -43,15 +43,18 @@ class Experiment():
                 continue
 
             pre_votes = smooth_graph_classifier(
-                hparams, model, data_test, hparams["n0"])
+                hparams, model, data_test, hparams["pre_n_samples"])
             votes = smooth_graph_classifier(
-                hparams, model, data_test, hparams["n1"])
+                hparams, model, data_test, hparams["n_samples"])
 
             pre_votes = pre_votes[idx_test]
             votes = votes[idx_test]
+            print(f'pre_votes: {pre_votes.shape}')
+            print(f'votes: {votes.shape}')
             y_hat = pre_votes.argmax(1)
             y = data_test.y.cpu()
             correct = (y_hat == y).numpy()
+            print(f'correct {correct.shape}')
             clean_acc = correct.mean()
             y_majority = votes.argmax(1)
             majority_correct = (y_majority == y).numpy()

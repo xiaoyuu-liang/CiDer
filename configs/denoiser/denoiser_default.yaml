@@ -1,6 +1,8 @@
-attr_noise_scale: 0
-adj_noise_scale: 500
+attr_noise_scale: 200
+adj_noise_scale: 0
 
+alpha: 0.01
+pre_n_samples: 10
 n_samples: 100
 
 classifier: 'gcn'

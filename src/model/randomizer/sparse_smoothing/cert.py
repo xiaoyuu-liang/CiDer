@@ -30,7 +30,6 @@ def regions_binary(ra, rd, pf_plus, pf_minus, precision=1000):
     regions: array-like, [None, 3]
         Regions of constant probability under px and px_tilde,
     """
-
     pf_plus, pf_minus = gmpy2.mpfr(pf_plus), gmpy2.mpfr(pf_minus)
     with gmpy2.context(precision=precision):
         if pf_plus == 0:

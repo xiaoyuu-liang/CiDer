@@ -254,3 +254,14 @@ def classifier_predict(dataloader, classifier, device):
     acc = correct / len(dataloader)
     print(f'Accuracy: {acc}')
 
+
+def save_cetrificate(dict_to_save, dataset_config, hparams, path):
+
+    arch = hparams['classifier']
+    dataset = dataset_config['name']
+    p = hparams['smoothing_config']['p']
+    p_plus = hparams['smoothing_config']['p_plus']
+    p_minus = hparams['smoothing_config']['p_minus']
+
+    print(f'saving to {path}/{arch}_{dataset}_[{p}-{p_plus:.2f}-{p_minus:.2f}].pth')
+    torch.save(dict_to_save, f'{path}/{arch}_{dataset}_[{p}-{p_plus:.2f}-{p_minus:.2f}].pth')

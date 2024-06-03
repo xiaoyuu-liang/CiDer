@@ -25,13 +25,13 @@ def certify(correct, votes, pre_votes, hparams):
         votes=votes,
         pre_votes=pre_votes,
         alpha=hparams['alpha'],
-        n_samples=hparams["n1"]
+        n_samples=hparams["n_samples"]
     )
     p_lower, p_upper = p_lower_upper_from_votes(
         votes=votes,
         pre_votes=pre_votes,
         conf_alpha=hparams['alpha'],
-        n_samples=hparams["n1"]
+        n_samples=hparams["n_samples"]
     )
     p_emps = (p_lower_binary, p_lower, p_upper)
     abstain_binary = p_lower_binary <= 0.5

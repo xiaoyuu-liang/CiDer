@@ -18,8 +18,8 @@ hparams:
   logging: False
 
   alpha: 0.01
-  n0: 10        # pre_votes num samples
-  n1: 100       # votes num samples
+  pre_n_samples: 10
+  n_samples: 100       
 
   smoothing_config:
     smoothing_distribution: "hierarchical_sparse"

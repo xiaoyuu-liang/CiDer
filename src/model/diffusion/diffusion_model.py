@@ -15,6 +15,7 @@ from src.model.diffusion.noise_schedule import PredefinedNoiseScheduleDiscrete, 
 from src.model.diffusion.mpnn import MPNN
 from src.model.diffusion import utils
 from src.model.diffusion import diffusion_utils
+from src.model.randomizer.cert import certify
 
 
 class GraphJointDiffuser(pl.LightningModule):
@@ -452,39 +453,68 @@ class GraphJointDiffuser(pl.LightningModule):
         return utils.PlaceHolder(X=probX0, E=probE0, y=proby0)
     
     @torch.no_grad()
-    def denoised_smoothing(self, dataloader, t_X, t_E, n_samples=100, classifier=None):
+    def denoised_smoothing(self, dataloader, classifier=None, hparams=None):
         """
-        t_X: noise scale for attribute defined by timestamp
-        t_E: noise scale for adjacent defined by timestamp
-        n_samples: number of samples to denoise and smoothing
+        hparams: dict
         """
         num_classes = len(self.dataset_info.node_types)
         batch_size = dataloader.batch_size
         device = classifier.device
-
-        acc = 0
-        correct = 0
-
+        
+        pre_votes_list = []
+        votes_list = []
+        targets_list = []
+        
         for data in tqdm(dataloader, desc="Denoised Smoothing"):
             target = torch.tensor([data.labels[i][data.target_node[i]] for i in range(len(data.labels))]).to(device)
             pad = -torch.ones((batch_size - len(data.labels)), dtype=torch.float).to(device)
             target = torch.cat((target, pad), dim=0)
 
+            pre_votes = torch.zeros((batch_size, num_classes), dtype=torch.long, device=device)
             votes = torch.zeros((batch_size, num_classes), dtype=torch.long, device=device)
-            for _ in range(n_samples):
-                denoised_graphs = self.denoise_Z(data, t_X, t_E)
-                for i in (range(len(denoised_graphs))):
-                    x = denoised_graphs[i].x.to(device)
-                    edge_index = denoised_graphs[i].edge_index.to(device)
-                    target_node = denoised_graphs[i].target_node
+
+            pre_votes_list.append(self.denoise_pred(data, hparams['attr_noise_scale'], hparams['adj_noise_scale'], hparams['pre_n_samples'], pre_votes, classifier))
+            votes_list.append(self.denoise_pred(data, hparams['attr_noise_scale'], hparams['adj_noise_scale'], hparams['n_samples'], votes, classifier))
+            targets_list.append(target)        
+        
+        pre_votes = torch.cat(pre_votes_list, dim=0)[:dataloader.dataset.split_len['test'], :]
+        votes = torch.cat(votes_list, dim=0)[:dataloader.dataset.split_len['test'], :]
+        targets = torch.cat(targets_list, dim=0)[:dataloader.dataset.split_len['test']]
+
+        pre_labels = pre_votes.argmax(-1)    
+        labels = votes.argmax(-1)
+
+        correct = (labels == targets).cpu().numpy()
+        clean_acc = correct.mean()
+        print(f'Clean accuracy: {clean_acc}')
+        majority_correct = (pre_labels == targets).cpu().numpy()
+        majority_acc = majority_correct.mean()
+        print(f'Majority vote accuracy: {majority_acc}')
+        
+        certificate = certify(correct, votes.cpu(), pre_votes.cpu(), hparams)
+        certificate['clean_acc'] = clean_acc
+        certificate['majority_acc'] = majority_acc
+        certificate['correct'] = correct.tolist()
+
+    
+    def denoise_pred(self, data, t_X, t_E, n_samples, votes, classifier):
+        """
+        Return: denoised prediction votes for data with classifier.
+        """
+        device = classifier.device
+
+        for _ in range(n_samples):
+            denoised_graphs = self.denoise_Z(data, t_X, t_E)
+            batch_size = len(denoised_graphs)
+
+            for i in (range(batch_size)):
+                x = denoised_graphs[i].x.to(device)
+                edge_index = denoised_graphs[i].edge_index.to(device)
+                target_node = denoised_graphs[i].target_node
                 
-                    pred = classifier(x, edge_index)[target_node]
-                    votes[i][pred.argmax(-1)] += 1
-            labels = votes.argmax(-1)
-            correct += (labels == target).sum().item()
-        print(f'Correct: {correct}, Total: {dataloader.dataset.split_len["test"]}')
-        acc = correct / dataloader.dataset.split_len['test']
-        print(f'Denoised smoothing accuracy: {acc}')
+                pred = classifier(x, edge_index)[target_node]
+                votes[i][pred.argmax(-1)] += 1
+        return votes
         
 
     @torch.no_grad()
@@ -568,5 +598,6 @@ class GraphJointDiffuser(pl.LightningModule):
         E_flip_prob = Qtb_E.E.squeeze(0)
         print(f'X_p_plus: {X_flip_prob[0][1]:.2f}, X_p_minus: {X_flip_prob[1][0]:.2f}')
         print(f'E_p_plus: {E_flip_prob[0][1]:.2f}, E_p_minus: {E_flip_prob[1][0]:.2f}')
-        return {'X_p_plus': X_flip_prob[0][1], 'X_p_minus': X_flip_prob[1][0],
-                'E_p_plus': E_flip_prob[0][1], 'E_p_minus': E_flip_prob[1][0]}
+        return {'p': 1, 'smoothing_distribution': "sparse", 'append_indicator': False,
+                'p_plus': X_flip_prob[0][1].item(), 'p_minus': X_flip_prob[1][0].item(),
+                'adj_p_plus': E_flip_prob[0][1].item(), 'adj_p_minus': E_flip_prob[1][0].item()}

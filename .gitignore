@@ -26,6 +26,8 @@ Thumbs.db
 /figs/
 /data/raw/
 /data/processed/
+/rand_results/
+/rand_gnn_results/
 *.pkl
 
 # running files

@@ -15,7 +15,9 @@ from src.model.diffusion.noise_schedule import PredefinedNoiseScheduleDiscrete, 
 from src.model.diffusion.mpnn import MPNN
 from src.model.diffusion import utils
 from src.model.diffusion import diffusion_utils
-from src.model.randomizer.cert import certify
+from src.model.randomizer.cert import certify as certify
+from src.model.sparse_randomizer.cert import certify as joint_certify
+
 
 
 class GraphJointDiffuser(pl.LightningModule):
@@ -491,10 +493,15 @@ class GraphJointDiffuser(pl.LightningModule):
         majority_acc = majority_correct.mean()
         print(f'Majority vote accuracy: {majority_acc}')
         
-        certificate = certify(correct, votes.cpu(), pre_votes.cpu(), hparams)
+        if hparams['joint_certify']:
+            certificate = joint_certify(correct, votes.cpu(), pre_votes.cpu(), hparams)
+        else:
+            certificate = certify(correct, votes.cpu(), pre_votes.cpu(), hparams)
         certificate['clean_acc'] = clean_acc
         certificate['majority_acc'] = majority_acc
         certificate['correct'] = correct.tolist()
+
+        return certificate
 
     
     def denoise_pred(self, data, t_X, t_E, n_samples, votes, classifier):
@@ -600,4 +607,4 @@ class GraphJointDiffuser(pl.LightningModule):
         print(f'E_p_plus: {E_flip_prob[0][1]:.2f}, E_p_minus: {E_flip_prob[1][0]:.2f}')
         return {'p': 1, 'smoothing_distribution': "sparse", 'append_indicator': False,
                 'p_plus': X_flip_prob[0][1].item(), 'p_minus': X_flip_prob[1][0].item(),
-                'adj_p_plus': E_flip_prob[0][1].item(), 'adj_p_minus': E_flip_prob[1][0].item()}
+                'p_plus_adj': E_flip_prob[0][1].item(), 'p_minus_adj': E_flip_prob[1][0].item()}

@@ -130,11 +130,11 @@ def hierarchical_sparse_certificate(correct, abstain, p_emps, hparams):
                                              max_ra=base_max_ra,
                                              max_rd=base_max_rd,
                                              progress_bar=True)
-
+    
     (abstain_binary, abstain_multiclass) = abstain
     binary_class_cert = (~abstain_binary * (grid_base > 0.5).T)
     multi_class_cert = (~abstain_multiclass * (grid_lower > grid_upper).T)
-
+    print(correct.shape, binary_class_cert.shape)
     # shape: (r, r_a, r_d) after last transpose
     result = {
         "binary": {
@@ -146,7 +146,7 @@ def hierarchical_sparse_certificate(correct, abstain, p_emps, hparams):
             "cert_acc": (correct * multi_class_cert).mean(-1).T
         }
     }
-
+    print(binary_class_cert.mean(-1).T.shape, multi_class_cert.mean(-1).T.shape)
     return result
 
 

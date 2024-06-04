@@ -257,11 +257,16 @@ def classifier_predict(dataloader, classifier, device):
 
 def save_cetrificate(dict_to_save, dataset_config, hparams, path):
 
+    if isinstance(dataset_config, str):
+        dataset = dataset_config
+    else:
+        dataset = dataset_config['name']
     arch = hparams['classifier']
-    dataset = dataset_config['name']
     p = hparams['smoothing_config']['p']
     p_plus = hparams['smoothing_config']['p_plus']
     p_minus = hparams['smoothing_config']['p_minus']
+    p_plus_adj = hparams['smoothing_config']['p_plus_adj']
+    p_minus_adj = hparams['smoothing_config']['p_minus_adj']
 
-    print(f'saving to {path}/{arch}_{dataset}_[{p}-{p_plus:.2f}-{p_minus:.2f}].pth')
-    torch.save(dict_to_save, f'{path}/{arch}_{dataset}_[{p}-{p_plus:.2f}-{p_minus:.2f}].pth')
+    print(f'saving to {path}/{arch}_{dataset}_[{p}-X{p_plus:.2f}-{p_minus:.2f}-E{p_plus_adj:.2f}-{p_minus_adj:.2f}].pth')
+    torch.save(dict_to_save, f'{path}/{arch}_{dataset}_[{p}-X{p_plus:.2f}-{p_minus:.2f}-E{p_plus_adj:.2f}-{p_minus_adj:.2f}].pth')

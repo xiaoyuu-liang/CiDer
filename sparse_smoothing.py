@@ -29,10 +29,10 @@ def config():
     p_dropout = 0.5
 
     pf_plus_adj = 0.00
-    pf_minus_adj = 0.9999
+    pf_minus_adj = 0.66
 
-    pf_plus_att = 0.00
-    pf_minus_att = 0.00
+    pf_plus_att = 0.01
+    pf_minus_att = 0.65
 
     n_samples_train = 1
     batch_size_train = 1
@@ -68,6 +68,7 @@ def run(_config, dataset, n_per_class, seed,
     from src.model.sparse_randomizer.cert import binary_certificate, joint_binary_certificate
     from src.model.sparse_randomizer.utils import (accuracy_majority, sample_batch_pyg)
     from torch_geometric.data import DataLoader as PyGDataLoader
+    from src.general_utils import save_cetrificate
     print(_config)
 
     try:
@@ -151,55 +152,73 @@ def run(_config, dataset, n_per_class, seed,
                                model=model, n=n, d=d, nc=nc,
                                batch_size=batch_size_eval)
 
+    acc_clean = {}
+    for split_name in ['train', 'val', 'test']:
+        acc_clean[split_name] = accuracy_majority(votes=pre_votes, labels=graph.labels, idx=idx[split_name])
     acc_majority = {}
     for split_name in ['train', 'val', 'test']:
         acc_majority[split_name] = accuracy_majority(votes=votes, labels=graph.labels, idx=idx[split_name])
 
     votes_max = votes.max(1)[idx['test']]
+    correct = votes.argmax(1)[idx['test']] == graph.labels[idx['test']]
 
     agreement = (votes.argmax(1) == pre_votes.argmax(1)).mean() 
 
-    # # we are perturbing ONLY the ATTRIBUTES
-    # if pf_plus_adj == 0 and pf_minus_adj == 0:
-    #     print('Just ATT')
-    #     grid_base, grid_lower, grid_upper = binary_certificate(
-    #         votes=votes, pre_votes=pre_votes, n_samples=n_samples_eval, conf_alpha=conf_alpha,
-    #         pf_plus=pf_plus_att, pf_minus=pf_minus_att)
-    # # we are perturbing ONLY the GRAPH
-    # elif pf_plus_att == 0 and pf_minus_att == 0:
-    #     print('Just ADJ')
-    #     grid_base, grid_lower, grid_upper = binary_certificate(
-    #         votes=votes, pre_votes=pre_votes, n_samples=n_samples_eval, conf_alpha=conf_alpha,
-    #         pf_plus=pf_plus_adj, pf_minus=pf_minus_adj)
-    # else:
-    #     grid_base, grid_lower, grid_upper = joint_binary_certificate(
-    #         votes=votes, pre_votes=pre_votes, n_samples=n_samples_eval, conf_alpha=conf_alpha,
-    #         pf_plus_adj=pf_plus_adj, pf_minus_adj=pf_minus_adj,
-    #         pf_plus_att=pf_plus_att, pf_minus_att=pf_minus_att)
+    # we are perturbing ONLY the ATTRIBUTES
+    if pf_plus_adj == 0 and pf_minus_adj == 0:
+        print('Just ATT')
+        grid_base, grid_lower, grid_upper = binary_certificate(
+            votes=votes, pre_votes=pre_votes, n_samples=n_samples_eval, conf_alpha=conf_alpha,
+            pf_plus=pf_plus_att, pf_minus=pf_minus_att)
+    # we are perturbing ONLY the GRAPH
+    elif pf_plus_att == 0 and pf_minus_att == 0:
+        print('Just ADJ')
+        grid_base, grid_lower, grid_upper = binary_certificate(
+            votes=votes, pre_votes=pre_votes, n_samples=n_samples_eval, conf_alpha=conf_alpha,
+            pf_plus=pf_plus_adj, pf_minus=pf_minus_adj)
+    else:
+        grid_base, grid_lower, grid_upper = joint_binary_certificate(
+            votes=votes, pre_votes=pre_votes, n_samples=n_samples_eval, conf_alpha=conf_alpha,
+            pf_plus_adj=pf_plus_adj, pf_minus_adj=pf_minus_adj,
+            pf_plus_att=pf_plus_att, pf_minus_att=pf_minus_att)
 
-    # mean_max_ra_base = (grid_base > 0.5)[:, :, 0].argmin(1).mean()
-    # mean_max_rd_base = (grid_base > 0.5)[:, 0, :].argmin(1).mean()
-    # mean_max_ra_loup = (grid_lower >= grid_upper)[:, :, 0].argmin(1).mean()
-    # mean_max_rd_loup = (grid_lower >= grid_upper)[:, 0, :].argmin(1).mean()
+    mean_max_ra_base = (grid_base > 0.5)[:, :, 0].argmin(1).mean()
+    mean_max_rd_base = (grid_base > 0.5)[:, 0, :].argmin(1).mean()
+    mean_max_ra_loup = (grid_lower >= grid_upper)[:, :, 0].argmin(1).mean()
+    mean_max_rd_loup = (grid_lower >= grid_upper)[:, 0, :].argmin(1).mean()
 
     run_id = _config['overwrite']
     db_collection = _config['db_collection']
     
     torch.save(model.state_dict(), save_name)
 
+    binary_class_cert = (grid_base > 0.5)[idx['test']].T
+    multi_class_cert = (grid_lower > grid_upper)[idx['test']].T
+
     # the returned result will be written into the database
     results = {
-        'acc_majority_train': acc_majority['train'],
-        'acc_majority_val': acc_majority['val'],
-        'acc_majority_test': acc_majority['test'],
-        'above_99': (votes_max >= 0.99 * n_samples_eval).mean(),
-        'above_95': (votes_max >= 0.95 * n_samples_eval).mean(),
-        'above_90': (votes_max >= 0.90 * n_samples_eval).mean(),
-        # 'mean_max_ra_base': mean_max_ra_base,
-        # 'mean_max_rd_base': mean_max_rd_base,
-        # 'mean_max_ra_loup': mean_max_ra_loup,
-        # 'mean_max_rd_loup': mean_max_rd_loup, 
-        'agreement': agreement,
+        'clean_acc': acc_clean['test'],
+        'majority_acc': acc_majority['test'],
+        'correct': correct.tolist(),
+        "binary": {
+            "ratios": binary_class_cert.mean(0),
+            "cert_acc": (correct * binary_class_cert).mean(0).T
+        },
+        "multiclass": {
+            "ratios": multi_class_cert.mean(0),
+            "cert_acc": (correct * multi_class_cert).mean(0).T
+        }
     }
-
-    return results
+    
+    hparams = {
+        'classifier': model.__class__.__name__.lower(),
+        'smoothing_config': {
+            'p': 1,
+            'p_plus_adj': pf_plus_adj,
+            'p_plus': pf_plus_att,
+            'p_minus_adj': pf_minus_adj,
+            'p_minus': pf_minus_att,
+        },
+    }
+    save_cetrificate(results, dataset, hparams, f"{save_dir}/{hparams['classifier']}_{dataset}")
+    return {k: results[k] for k in ('clean_acc', 'majority_acc')}

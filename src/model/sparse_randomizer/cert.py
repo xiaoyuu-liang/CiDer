@@ -797,3 +797,52 @@ def joint_binary_certificate(votes, pre_votes, n_samples, conf_alpha,
         p_emps=p_upper, reverse=True, cross_regions=cross_regions, progress_bar=True)
 
     return grid_base, grid_lower, grid_upper
+
+
+def certify(correct, pre_votes, votes, hparams):
+    """Computes lower and upper bound on the label probability
+      and then computes certificates depending on the smoothing distribution.
+
+    Args:
+        correct (np.array): Array indicating which samples have been correctly
+        classified by the smoothed model. Used for the certified accuracy.
+        votes (torch.tensor) : Votes per class for each node.
+        pre_votes (torch.tensor): Votes per class for each node.
+        hparams (dict): Experiment hyperparameters.
+
+    Returns:
+        dict: Dictionary containing certificate results
+        (binary and multiclass certificates: certified ratios & accuracies).
+    """
+
+    n_samples = hparams['n_samples']
+    conf_alpha = hparams['alpha']
+    
+    pf_plus_adj = hparams['smoothing_config']['p_plus_adj']
+    pf_minus_adj = hparams['smoothing_config']['p_minus_adj']
+    pf_plus_att = hparams['smoothing_config']['p_plus']
+    pf_minus_att = hparams['smoothing_config']['p_minus']
+
+    # (n_nodes, max_ra_adj, max_rd_adj, max_ra_att, max_rd_att)
+    grid_base, grid_lower, grid_upper = joint_binary_certificate(
+            votes=votes, pre_votes=pre_votes, n_samples=n_samples, conf_alpha=conf_alpha,
+            pf_plus_adj=pf_plus_adj, pf_minus_adj=pf_minus_adj,
+            pf_plus_att=pf_plus_att, pf_minus_att=pf_minus_att)
+    
+    binary_class_cert = (grid_base > 0.5).T
+    multi_class_cert = (grid_lower > grid_upper).T
+
+    results = {
+        "binary": {
+            "ratios": binary_class_cert.mean(0),
+            "cert_acc": (correct * binary_class_cert).mean(0).T
+        },
+        "multiclass": {
+            "ratios": multi_class_cert.mean(0),
+            "cert_acc": (correct * multi_class_cert).mean(0).T
+        }
+    }
+    print(results['binary']['cert_acc'].shape)
+
+    return results
+    

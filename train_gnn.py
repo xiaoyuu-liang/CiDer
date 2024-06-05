@@ -74,7 +74,7 @@ seml.setup_logger(ex)
 @ex.config
 def config():
     seed = 42
-    model = 'sage'
+    model = 'gcn'
     dataset = 'cora'
 
 @ex.automain

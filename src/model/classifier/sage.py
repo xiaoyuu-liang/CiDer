@@ -39,6 +39,9 @@ class SAGE(BaseModel):
         self.device = device
         self.name = "SAGE"
 
+        self.token = nn.Parameter(torch.zeros(nfeat))
+        nn.init.xavier_uniform_(self.token.unsqueeze(0))
+
     def initialize(self):
         self.reset_parameters()
 

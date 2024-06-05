@@ -39,6 +39,9 @@ class AirGNN(BaseModel):
         self.name = args.model
         self.with_bn = with_bn
 
+        self.token = nn.Parameter(torch.zeros(nfeat))
+        nn.init.xavier_uniform_(self.token.unsqueeze(0))
+
     def initialize(self):
         self.reset_parameters()
 

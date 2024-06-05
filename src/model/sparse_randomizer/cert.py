@@ -842,7 +842,6 @@ def certify(correct, pre_votes, votes, hparams):
             "cert_acc": (correct * multi_class_cert).mean(0).T
         }
     }
-    print(results['binary']['cert_acc'].shape)
 
     return results
     

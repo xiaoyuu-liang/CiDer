@@ -44,6 +44,9 @@ class GCN(BaseModel):
         self.with_bn = with_bn
         self.name = 'GCN'
 
+        self.token = nn.Parameter(torch.zeros(nfeat))
+        nn.init.xavier_uniform_(self.token.unsqueeze(0))
+
     def forward(self, x, edge_index, edge_weight=None):
         x, edge_index, edge_weight = self._ensure_contiguousness(x, edge_index, edge_weight)
         for ii, layer in enumerate(self.layers):

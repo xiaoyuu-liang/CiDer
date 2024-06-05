@@ -1,5 +1,5 @@
-attr_noise_scale: 0
-adj_noise_scale: 300
+attr_noise_scale: 250
+adj_noise_scale: 100
 joint_certify: True
 
 alpha: 0.01

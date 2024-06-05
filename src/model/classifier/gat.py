@@ -53,6 +53,9 @@ class GAT(BaseModel):
         self.name = 'GAT'
         self.with_bn = with_bn
 
+        self.token = nn.Parameter(torch.zeros(nfeat))
+        nn.init.xavier_uniform_(self.token.unsqueeze(0))
+
     def forward(self, x, edge_index, edge_weight=None):
         for ii, conv in enumerate(self.convs[:-1]):
             x = F.dropout(x, p=self.dropout, training=self.training)

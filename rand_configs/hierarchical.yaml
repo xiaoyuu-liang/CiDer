@@ -22,11 +22,11 @@ hparams:
   n_samples: 100       
 
   smoothing_config:
-    smoothing_distribution: "hierarchical_sparse"
-    append_indicator: True
-    p: 0.8
+    smoothing_distribution: "ablation"
+    append_indicator: False
+    p: 0.50
     p_plus: 0.00
-    p_minus: 0.35
+    p_minus: 0.00
   
   dataset: "cora"
   in_channels: 1433 

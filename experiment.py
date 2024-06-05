@@ -73,6 +73,7 @@ class Experiment():
 
         majority_accs = [dict_to_save[k]['majority_acc'] for k in seeds]
         dict_to_save['majority_acc'] = np.mean(majority_accs), np.std(majority_accs)
+        print(f'clean acc: {dict_to_save["clean_acc"]}, majority acc: {dict_to_save["majority_acc"]}')
 
         abstains = [dict_to_save[k]['abstain_binary'] for k in seeds]
         dict_to_save['abstain_binary'] = np.mean(abstains), np.std(abstains)

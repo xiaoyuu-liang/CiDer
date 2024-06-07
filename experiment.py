@@ -102,5 +102,22 @@ class Experiment():
             for seed in seeds:
                 del dict_to_save[seed]['binary']
                 del dict_to_save[seed]['multiclass']
+        if smoothing_distribution in ['ablation']:
+            dict_to_save['binary'] = {
+                "ratios": avg_results_ablation(dict_to_save, "binary",
+                                               "ratios", seeds),
+                "cert_acc": avg_results_ablation(dict_to_save, "binary",
+                                                 "cert_acc", seeds),
+            }
+            dict_to_save['multiclass'] = {
+                "ratios": avg_results_ablation(dict_to_save, "multiclass",
+                                               "ratios", seeds),
+                "cert_acc": avg_results_ablation(dict_to_save, "multiclass",
+                                                 "cert_acc", seeds),
+            }
+            # cleanup
+            for seed in seeds:
+                del dict_to_save[seed]['binary']
+                del dict_to_save[seed]['multiclass']
 
         return results, dict_to_save

@@ -5,6 +5,7 @@ from tqdm.auto import tqdm
 from .sparse_smoothing.cert import *
 import math
 
+from src.model.randomizer.utils import minimize
 
 def certify(correct, votes, pre_votes, hparams):
     """Computes lower and upper bound on the label probability
@@ -402,18 +403,18 @@ def ablation_certificate_scholten(correct, p_emps, hparams):
         robust_multi[r] = (p_lower-delta > p_upper+delta)
         if not robust_multi[r].any():
             break
-
+    
     result = {
         "binary": {
-            "cert_ratios": [robust_binary[r].mean()
+            "ratios": [robust_binary[r].mean()
                             for r in robust_binary],
-            "cert_accs": [(robust_binary[r]*correct).mean()
+            "cert_acc": [(robust_binary[r]*correct).mean()
                           for r in robust_binary]
         },
         "multiclass": {
-            "cert_ratios": [robust_multi[r].mean()
+            "ratios": [robust_multi[r].mean()
                             for r in robust_multi],
-            "cert_accs": [(robust_multi[r]*correct).mean()
+            "cert_acc": [(robust_multi[r]*correct).mean()
                           for r in robust_multi]
         }
     }

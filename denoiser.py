@@ -174,11 +174,11 @@ def main(cfg: DictConfig):
         # general_utils.classifier_predict(hirp_datamodule.test_dataloader(), classifier, device)
         hparams = OmegaConf.to_container(denoiser_config)
         smoothing_config = model.compute_noise(t_X=denoiser_config.attr_noise_scale, t_E=denoiser_config.adj_noise_scale)   
-        # hparams['smoothing_config'] = smoothing_config
-        # dict_to_save = model.denoised_smoothing(dataloader=datamodule.test_dataloader(),
-        #                                         classifier=classifier,
-        #                                         hparams=hparams)
-        # general_utils.save_cetrificate(dict_to_save, dataset_config, hparams, f"checkpoints/{dataset_config['name']}/{cfg.general.name}")
+        hparams['smoothing_config'] = smoothing_config
+        dict_to_save = model.denoised_smoothing(dataloader=datamodule.test_dataloader(),
+                                                classifier=classifier,
+                                                hparams=hparams)
+        general_utils.save_cetrificate(dict_to_save, dataset_config, hparams, f"checkpoints/{dataset_config['name']}/{cfg.general.name}")
         
         
             

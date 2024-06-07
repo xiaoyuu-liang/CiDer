@@ -28,17 +28,17 @@ def config():
     n_hidden = 64
     p_dropout = 0.5
 
-    pf_plus_adj = 0.00
-    pf_minus_adj = 0.10
+    pf_plus_adj = 0.0
+    pf_minus_adj = 00
 
-    pf_plus_att = 0.00
-    pf_minus_att = 0.35
+    pf_plus_att = 0.01
+    pf_minus_att = 0.6
 
     n_samples_train = 1
     batch_size_train = 1
 
-    n_samples_pre_eval = 10
-    n_samples_eval = 100
+    n_samples_pre_eval = 1000
+    n_samples_eval = 10000
     batch_size_eval = 10
 
     mean_softmax = False
@@ -65,7 +65,7 @@ def run(_config, dataset, n_per_class, seed,
     from src.model.classifier import GCN, GAT, APPNP, SAGE
     from src.model.sparse_randomizer.training import train_gnn, train_pytorch
     from src.model.sparse_randomizer.prediction import predict_smooth_gnn, predict_smooth_pytorch
-    from src.model.sparse_randomizer.cert import binary_certificate, joint_binary_certificate
+    from src.model.sparse_randomizer.cert import binary_certificate, joint_binary_certificate, minimize
     from src.model.sparse_randomizer.utils import (accuracy_majority, sample_batch_pyg)
     from torch_geometric.data import DataLoader as PyGDataLoader
     from src.general_utils import save_cetrificate
@@ -190,7 +190,7 @@ def run(_config, dataset, n_per_class, seed,
     run_id = _config['overwrite']
     db_collection = _config['db_collection']
     
-    torch.save(model.state_dict(), save_name)
+    # torch.save(model.state_dict(), save_name)
 
     binary_class_cert = (grid_base > 0.5)[idx['test']].T
     multi_class_cert = (grid_lower > grid_upper)[idx['test']].T
@@ -201,12 +201,12 @@ def run(_config, dataset, n_per_class, seed,
         'majority_acc': acc_majority['test'],
         'correct': correct.tolist(),
         "binary": {
-            "ratios": binary_class_cert.mean(0),
-            "cert_acc": (correct * binary_class_cert).mean(0).T
+            "ratios": minimize(binary_class_cert.mean(-1).T),
+            "cert_acc": minimize((correct * binary_class_cert).mean(-1).T)
         },
         "multiclass": {
-            "ratios": multi_class_cert.mean(0),
-            "cert_acc": (correct * multi_class_cert).mean(0).T
+            "ratios": minimize(multi_class_cert.mean(-1).T),
+            "cert_acc": minimize((correct * multi_class_cert).mean(-1).T)
         }
     }
     

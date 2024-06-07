@@ -18,15 +18,15 @@ hparams:
   logging: False
 
   alpha: 0.01
-  pre_n_samples: 10
-  n_samples: 100       
+  pre_n_samples: 100
+  n_samples: 10000   
 
   smoothing_config:
-    smoothing_distribution: "ablation"
+    smoothing_distribution: "hierarchical_sparse"
     append_indicator: False
-    p: 0.50
-    p_plus: 0.00
-    p_minus: 0.00
+    p: 0.8
+    p_plus: 0.01
+    p_minus: 0.65
   
   dataset: "cora"
   in_channels: 1433 
@@ -36,7 +36,5 @@ hparams:
   k_heads: 8
   k_hops: 8
   appnp_alpha: 0.15
-  hidden_channels: 8
-  p_dropout: 0.5
-  conv_dropout: 0.2
+  hidden_channels: 16
   with_skip: False

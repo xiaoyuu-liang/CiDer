@@ -15,8 +15,7 @@ from src.model.diffusion.noise_schedule import PredefinedNoiseScheduleDiscrete, 
 from src.model.diffusion.mpnn import MPNN
 from src.model.diffusion import utils
 from src.model.diffusion import diffusion_utils
-from src.model.randomizer.cert import certify as certify
-from src.model.sparse_randomizer.cert import certify as joint_certify
+from src.model.sparse_randomizer.cert import certify
 
 
 
@@ -459,6 +458,7 @@ class GraphJointDiffuser(pl.LightningModule):
         """
         hparams: dict
         """
+        test_len = dataloader.dataset.split_len['test']
         num_classes = len(self.dataset_info.node_types)
         batch_size = dataloader.batch_size
         device = classifier.device
@@ -479,9 +479,9 @@ class GraphJointDiffuser(pl.LightningModule):
             votes_list.append(self.denoise_pred(data, hparams['attr_noise_scale'], hparams['adj_noise_scale'], hparams['n_samples'], votes, classifier))
             targets_list.append(target)        
         
-        pre_votes = torch.cat(pre_votes_list, dim=0)[:dataloader.dataset.split_len['test'], :]
-        votes = torch.cat(votes_list, dim=0)[:dataloader.dataset.split_len['test'], :]
-        targets = torch.cat(targets_list, dim=0)[:dataloader.dataset.split_len['test']]
+        pre_votes = torch.cat(pre_votes_list, dim=0)[:test_len, :]
+        votes = torch.cat(votes_list, dim=0)[:test_len, :]
+        targets = torch.cat(targets_list, dim=0)[:test_len]
 
         pre_labels = pre_votes.argmax(-1)    
         labels = votes.argmax(-1)
@@ -493,10 +493,7 @@ class GraphJointDiffuser(pl.LightningModule):
         majority_acc = majority_correct.mean()
         print(f'Majority vote accuracy: {majority_acc}')
         
-        if hparams['joint_certify']:
-            certificate = joint_certify(correct, votes.cpu(), pre_votes.cpu(), hparams)
-        else:
-            certificate = certify(correct, votes.cpu(), pre_votes.cpu(), hparams)
+        certificate = certify(correct, pre_votes.cpu(), votes.cpu(), hparams)
         certificate['clean_acc'] = clean_acc
         certificate['majority_acc'] = majority_acc
         certificate['correct'] = correct.tolist()

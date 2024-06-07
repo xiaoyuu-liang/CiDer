@@ -3,6 +3,19 @@ import random
 import numpy as np
 
 
+def avg_results_ablation(exp, key1, key2, seeds):
+    merged = []
+
+    for i in range(len(seeds)):
+        merged.append(exp[seeds[i]][key1][key2])
+
+    merged = np.array(merged)
+    mean = merged.mean(0)
+    pad = np.zeros_like(mean)
+    
+    return minimize(np.vstack((mean, pad)))
+
+
 def avg_results(exp, key1, key2, seeds):
     max_r = max([exp[k][key1][key2].shape[0] for k in seeds])
     max_ra = max([exp[k][key1][key2].shape[1] for k in seeds])
@@ -20,8 +33,7 @@ def avg_results(exp, key1, key2, seeds):
 
 
 def minimize(array: np.array):
-    return array.shape, tuple(t.tolist() for t in array.nonzero()),
-    array[array.nonzero()].tolist()
+    return array.shape, tuple(t.tolist() for t in array.nonzero()), array[array.nonzero()].tolist()
 
 
 def set_random_seed(seed: int):

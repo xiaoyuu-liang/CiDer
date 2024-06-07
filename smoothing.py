@@ -63,6 +63,6 @@ def run(_config, conf: dict, hparams: dict):
         p_plus = hparams['smoothing_config']['p_plus']
         p_minus = hparams['smoothing_config']['p_minus']
 
-        print(f'saving to {save_dir}/{arch}_{dataset}_[{p}-{p_plus}-{p_minus}].pth')
-        torch.save(dict_to_save, f'{save_dir}/{arch}_{dataset}_[{p}-{p_plus}-{p_minus}].pth')
+        print(f'saving to {save_dir}/{dataset}/{arch}_{dataset}_[{p}-{p_plus}-{p_minus}].pth')
+        torch.save(dict_to_save, f'{save_dir}/{dataset}/{arch}_{dataset}_[{p}-{p_plus}-{p_minus}].pth')
     return results

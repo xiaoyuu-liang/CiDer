@@ -1,10 +1,9 @@
-attr_noise_scale: 250
-adj_noise_scale: 100
-joint_certify: True
+attr_noise_scale: 300
+adj_noise_scale: 0
 
 alpha: 0.01
-pre_n_samples: 10
-n_samples: 100
+pre_n_samples: 100
+n_samples: 10000
 
 classifier: 'gcn'
 classifier_path: 'gnn_checkpoints/gcn_cora.pt'

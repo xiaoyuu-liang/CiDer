@@ -29,16 +29,16 @@ def config():
     p_dropout = 0.5
 
     pf_plus_adj = 0.0
-    pf_minus_adj = 00
+    pf_minus_adj = 0.0
 
     pf_plus_att = 0.01
-    pf_minus_att = 0.6
+    pf_minus_att = 0.65
 
     n_samples_train = 1
     batch_size_train = 1
 
-    n_samples_pre_eval = 1000
-    n_samples_eval = 10000
+    n_samples_pre_eval = 10
+    n_samples_eval = 1000
     batch_size_eval = 10
 
     mean_softmax = False

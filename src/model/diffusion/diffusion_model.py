@@ -468,7 +468,8 @@ class GraphJointDiffuser(pl.LightningModule):
         targets_list = []
         
         for data in tqdm(dataloader, desc="Denoised Smoothing"):
-            target = torch.tensor([data.labels[i][data.target_node[i]] for i in range(len(data.labels))]).to(device)
+            batch_size = len(data.labels)
+            target = torch.tensor([data.labels[i][data.target_node[i]] for i in range(batch_size)]).to(device)
             pad = -torch.ones((batch_size - len(data.labels)), dtype=torch.float).to(device)
             target = torch.cat((target, pad), dim=0)
 
@@ -486,17 +487,17 @@ class GraphJointDiffuser(pl.LightningModule):
         pre_labels = pre_votes.argmax(-1)    
         labels = votes.argmax(-1)
 
-        correct = (labels == targets).cpu().numpy()
-        clean_acc = correct.mean()
+        pre_correct = (pre_labels == targets).cpu().numpy()
+        clean_acc = pre_correct.mean()
         print(f'Clean accuracy: {clean_acc}')
-        majority_correct = (pre_labels == targets).cpu().numpy()
+        majority_correct = (labels == targets).cpu().numpy()
         majority_acc = majority_correct.mean()
         print(f'Majority vote accuracy: {majority_acc}')
         
-        certificate = certify(correct, pre_votes.cpu(), votes.cpu(), hparams)
+        certificate = certify(majority_correct, pre_votes.cpu(), votes.cpu(), hparams)
         certificate['clean_acc'] = clean_acc
         certificate['majority_acc'] = majority_acc
-        certificate['correct'] = correct.tolist()
+        certificate['correct'] = majority_correct.tolist()
 
         return certificate
 
@@ -511,13 +512,15 @@ class GraphJointDiffuser(pl.LightningModule):
             denoised_graphs = self.denoise_Z(data, t_X, t_E)
             batch_size = len(denoised_graphs)
 
-            for i in (range(batch_size)):
-                x = denoised_graphs[i].x.to(device)
-                edge_index = denoised_graphs[i].edge_index.to(device)
-                target_node = denoised_graphs[i].target_node
-                
-                pred = classifier(x, edge_index)[target_node]
-                votes[i][pred.argmax(-1)] += 1
+            denoised_data = torch_geometric.data.Batch.from_data_list(denoised_graphs).to(device)
+            pred = classifier(denoised_data.x, denoised_data.edge_index)
+
+            cum_node_counts = denoised_data.batch.bincount().cumsum(0)
+            cum_node_counts = torch.cat([torch.tensor([0], device=device), cum_node_counts[:-1]], dim=0)
+            global_target_nodes = cum_node_counts + torch.tensor(denoised_data.target_node, device=device)
+
+            pred_target_nodes = pred[global_target_nodes]
+            votes[range(batch_size), pred_target_nodes.argmax(-1)] += 1
         return votes
         
 
@@ -542,7 +545,8 @@ class GraphJointDiffuser(pl.LightningModule):
 
         denoised_data = diffusion_utils.sample_discrete_features(probX=prob_X.cpu(), probE=prob_E.cpu(), node_mask=node_mask.cpu())
         denoised_graphs = []
-        for graph in range(denoised_data.X.size(0)):
+        batch_size = denoised_data.X.size(0)
+        for graph in range(batch_size):
             mask = node_mask[graph].cpu()
             x = denoised_data.X[graph][mask].float()
             edge_index = torch.LongTensor(denoised_data.E[graph][mask][:, mask].nonzero()).transpose(0, 1)

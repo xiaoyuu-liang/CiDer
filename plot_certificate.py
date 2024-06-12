@@ -25,7 +25,7 @@ def parse_arguments():
     
     args = vars(arg.parse_args())
 
-    joint = args["joint"].split(',')
+    joint = args["joint"].split(',') if args["joint"] else []
     joint = (joint[0], int(joint[1]), int(joint[2])) if joint else ()
 
     return args["cert_path"], args["op"], args["h_radius"], joint

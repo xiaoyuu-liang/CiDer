@@ -3,7 +3,7 @@ defaults:
     - general : general_default
     - model : mpnn
     - train : train_default
-    - dataset : cora
+    - dataset : amazon_photo
     - denoiser : denoiser_default
 
 hydra:
@@ -11,7 +11,4 @@ hydra:
     chdir: True
   run:
     dir: .
-
-
-
 

@@ -20,7 +20,7 @@ warnings.filterwarnings("ignore", category=PossibleUserWarning)
 from src import general_utils
 from src.model.classifier import GCN, GAT, APPNP, SAGE
 from src.model.diffusion import utils
-from src.model.diffusion.attributed_dataset import AttributedGraphDataModule, AttributedDatasetInfos, HiRPDataModule
+from src.model.diffusion.attributed_dataset import AttributedGraphDataModule, AttributedDatasetInfos
 from src.model.diffusion.extra_features import DummyExtraFeatures
 from src.model.diffusion.train_metrics import TrainAbstractMetricsDiscrete
 from src.model.diffusion.diffusion_model import GraphJointDiffuser
@@ -170,8 +170,6 @@ def main(cfg: DictConfig):
 
         classifier.eval()
         classifier.to(device)
-        # hirp_datamodule = HiRPDataModule(cfg)
-        # general_utils.classifier_predict(hirp_datamodule.test_dataloader(), classifier, device)
         hparams = OmegaConf.to_container(denoiser_config)
         smoothing_config = model.compute_noise(t_X=denoiser_config.attr_noise_scale, t_E=denoiser_config.adj_noise_scale)   
         hparams['smoothing_config'] = smoothing_config
@@ -180,11 +178,6 @@ def main(cfg: DictConfig):
                                                 hparams=hparams)
         general_utils.save_cetrificate(dict_to_save, dataset_config, hparams, f"checkpoints/{dataset_config['name']}/{cfg.general.name}")
         
-        
-            
-
-        
-
 
 if __name__ == '__main__':
     main()

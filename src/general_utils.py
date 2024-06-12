@@ -9,6 +9,7 @@ from torch_geometric.data import Data
 from src.sparse_graph import SparseGraph
 from sklearn.preprocessing import MultiLabelBinarizer, LabelBinarizer
 
+from src.sparse_graph import SparseGraph, create_subgraph
 
 def load_and_standardize(dataset_file, 
                          standard={'make_unweighted': True, 'make_undirected': True, 'no_self_loops':  True, 'select_lcc':  True}):
@@ -270,3 +271,37 @@ def save_cetrificate(dict_to_save, dataset_config, hparams, path):
 
     print(f'saving to {path}/{arch}_{dataset}_[{p}-X{p_plus:.2f}-{p_minus:.2f}-E{p_plus_adj:.2f}-{p_minus_adj:.2f}].pth')
     torch.save(dict_to_save, f'{path}/{arch}_{dataset}_[{p}-X{p_plus:.2f}-{p_minus:.2f}-E{p_plus_adj:.2f}-{p_minus_adj:.2f}].pth')
+
+
+def extract_subgraph(graph: SparseGraph, target_node: int, hop: int):
+    """
+    Extract a subgraph with a given hop.
+
+    Parameters
+    ----------
+    graph : SparseGraph
+        The graph.
+    target_node : int
+        The target node.
+    hop : int
+        The hop.
+
+    Returns
+    -------
+    subgraph : SparseGraph
+        The subgraph with target node.
+    """
+
+    # extract L-hop subgraph
+    nodes_to_keep = set([target_node])
+    for _ in range(hop):
+        l_hop = set()
+        for v in nodes_to_keep:
+            neighbors = graph.get_neighbors(v)
+            l_hop.update(neighbors)
+        nodes_to_keep.update(l_hop)
+    l_hop_graph = create_subgraph(graph, nodes_to_keep=nodes_to_keep, target_node=target_node)
+    target_node = l_hop_graph.target_node
+    # logging.info(f'Created subgraph with {subgraph.num_nodes()} nodes and {subgraph.num_edges()} edges with HiRP.')
+
+    return l_hop_graph

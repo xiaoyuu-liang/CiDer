@@ -21,7 +21,7 @@ Thumbs.db
 /src/model/classifier/__pycache__/
 
 # data files
-/data/
+/data/*/
 /graphs/
 /figs/
 /data/raw/
@@ -29,6 +29,9 @@ Thumbs.db
 /rand_results/
 /rand_gnn_results/
 *.pkl
+
+# dataset file
+# !data/*
 
 # running files
 /.hydra/

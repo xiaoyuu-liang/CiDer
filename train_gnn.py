@@ -30,21 +30,7 @@ def train_gnn(model: str, dataset: str, seed: int, save_path: str, device: torch
     print(f'Number of nodes: {graph.num_nodes()}')
 
     data = SpG2PyG(graph, random_seed=seed)
-    label_node_attr = data.x[data.y==7]
-    node_attr = np.array(label_node_attr)
-
-    # plt.figure(figsize=(15, 15))
-    # # Create a binary heatmap
-    # plt.imshow(node_attr, cmap='gray_r', aspect='auto')
-
-    # # Set the labels for the x-axis and y-axis
-    # plt.ylabel('Node Index')
-    # plt.xlabel('Binary Node Attribute')
-
-    # # Display the plot
-    # plt.savefig('figs/cora_7_attr_binary_heatmap.png', dpi=500, bbox_inches='tight')
-    # plt.show()
-    
+    print(len(data.y))
 
     # Setup model
     if model == 'gcn':
@@ -75,7 +61,7 @@ seml.setup_logger(ex)
 def config():
     seed = 42
     model = 'gcn'
-    dataset = 'reddit'
+    dataset = 'blogcatalog'
 
 @ex.automain
 def run(seed, model, dataset, _run, _log):  

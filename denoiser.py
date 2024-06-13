@@ -4,6 +4,8 @@ import random
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
+import pytorch_lightning as pl
+# pl.seed_everything(42)
 import argparse
 import warnings
 import logging
@@ -121,7 +123,7 @@ def main(cfg: DictConfig):
 
     model = GraphJointDiffuser(cfg, **model_kwargs)
     trainer = Trainer(gradient_clip_val=cfg.train.clip_grad,
-                      strategy="ddp_find_unused_parameters_true",  # Needed to load old checkpoints
+                      strategy="auto",  # Needed to load old checkpoints
                       accelerator='gpu' if use_gpu else 'cpu',
                       devices=cfg.general.gpus if use_gpu else 1,
                       max_epochs=cfg.train.n_epochs,

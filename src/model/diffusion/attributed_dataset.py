@@ -30,13 +30,19 @@ class AbstractDataModule(LightningDataset):
         return self.train_dataset[idx]
     
     # def train_dataloader(self):
-    #     return DataLoader(self.train_dataset, batch_size=1, shuffle=False)
+    #     return DataLoader(self.train_dataset, batch_size=self.cfg.train.batch_size, num_workers=self.cfg.train.num_workers)
+    
+    # def val_dataloader(self) -> DataLoader:
+    #     return DataLoader(self.val_dataset, batch_size=self.cfg.train.batch_size, num_workers=self.cfg.train.num_workers)
+    
+    # def test_dataloader(self) -> DataLoader:
+    #     return DataLoader(self.test_dataset, batch_size=self.cfg.train.batch_size, num_workers=self.cfg.train.num_workers)
     
     def graph_info(self):
         attr_margin, label_margin, adj_margin = get_marginal(self.train_dataset.graph)
         return attr_margin, label_margin, adj_margin
     
-    def node_counts(self, max_nodes_possible=1500):
+    def node_counts(self, max_nodes_possible=2000):
         all_counts = torch.zeros(max_nodes_possible)
         for loader in [self.train_dataloader(), self.val_dataloader()]:
             for data in loader:
@@ -89,6 +95,7 @@ class AttributedGraphDataset(InMemoryDataset):
         self.graph = load_and_standardize(self.file, standard=standard)
         self.hop = int(root[-2])
         self.num_graphs = self.graph.num_nodes() * self.hop
+        print(f'Loading {self.dataset_name} with {self.num_graphs} subgraphs')
 
         test_len = int(round(self.num_graphs * 0.2))
         train_len = int(round((self.num_graphs - test_len) * 0.8))

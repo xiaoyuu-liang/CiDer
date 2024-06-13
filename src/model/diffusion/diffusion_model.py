@@ -80,7 +80,9 @@ class GraphJointDiffuser(pl.LightningModule):
             x_marginals = self.dataset_info.node_attrs
             e_marginals = self.dataset_info.edge_types
 
-            print(f"Marginal distribution of the classes: {x_marginals} for nodes, {e_marginals} for edges")
+            print(f"""Marginal distribution of the classes: 
+                  {np.vectorize(lambda x: "{:.4f}".format(x))(x_marginals)} for nodes, 
+                  {np.vectorize(lambda x: "{:.4f}".format(x))(e_marginals)} for edges""")
             self.transition_model = MarginalUniformTransition(x_marginals=x_marginals, e_marginals=e_marginals,
                                                               y_classes=self.ydim_output)
             self.limit_dist = utils.PlaceHolder(X=x_marginals, E=e_marginals,

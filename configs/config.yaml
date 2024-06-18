@@ -3,7 +3,7 @@ defaults:
     - general : general_default
     - model : mpnn
     - train : train_default
-    - dataset : blogcatalog
+    - dataset : amazon_photo
     - denoiser : denoiser_default
 
 hydra:

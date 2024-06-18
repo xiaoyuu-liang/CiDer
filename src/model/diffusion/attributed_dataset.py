@@ -92,15 +92,16 @@ class AttributedGraphDataset(InMemoryDataset):
         self.file = os.path.join(base_dir, f'data/{dataset_name}.npz')
         self.dataset_name = dataset_name
         self.split = split
-        self.graph = load_and_standardize(self.file, standard=standard)
         self.hop = int(root[-2])
+        self.standard = standard
+        self.graph = load_and_standardize(self.file, standard=self.standard)
         self.num_graphs = self.graph.num_nodes() * self.hop
-        print(f'Loading {self.dataset_name} with {self.num_graphs} subgraphs')
 
         test_len = int(round(self.num_graphs * 0.2))
         train_len = int(round((self.num_graphs - test_len) * 0.8))
         val_len = self.num_graphs - train_len - test_len
         self.split_len = {'train': train_len, 'val': val_len, 'test': test_len}
+
         super().__init__(root, transform, pre_transform, pre_filter)
         self.data, self.slices = torch.load(self.processed_paths[0])
     
@@ -193,10 +194,10 @@ class AttributedGraphDataModule(AbstractDataModule):
                                                   split='val', root=root_path),
                     'test': AttributedGraphDataset(dataset_name=self.cfg.dataset.name,
                                                    split='test', root=root_path)}
-        # print(f'Dataset sizes: train {train_len}, val {val_len}, test {test_len}')
 
         super().__init__(cfg, datasets)
         self.inner = self.train_dataset
+        print(f'Load {self.cfg.dataset.name} dataset with {datasets["train"].num_graphs} subgraphs to datamodule.')
 
     def __getitem__(self, item):
         return self.inner[item]
@@ -205,7 +206,6 @@ class AttributedGraphDataModule(AbstractDataModule):
 class AttributedDatasetInfos(AbstractDatasetInfos):
     def __init__(self, datamodule, dataset_config):
         self.datamodule = datamodule
-        self.name = 'undirected_unweighted_binary_attributed_graph'
         self.node_counts = self.datamodule.node_counts() # node count marginal distribution
         attr_margin, label_margin, adj_margin = self.datamodule.graph_info()
         self.node_attrs = attr_margin # node attributes marginal distribution

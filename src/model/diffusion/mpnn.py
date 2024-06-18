@@ -123,10 +123,6 @@ class GNN(nn.Module):
         x_mask = node_mask.unsqueeze(-1)        # bs, n, 1 
         X = self.mlp_in_X(X) * x_mask
 
-        diag_mask = torch.eye(n)
-        diag_mask = ~diag_mask.type_as(E).bool()
-        diag_mask = diag_mask.unsqueeze(0).unsqueeze(-1).expand(bs, -1, -1, -1)
-
         y = self.mlp_in_y(y)
         _, hy = y.shape
 
@@ -150,11 +146,16 @@ class GNN(nn.Module):
         adj_block_diag = torch.block_diag(*adj_list)
         edge_index = torch.nonzero(adj_block_diag).t()
         src, dst = edge_index
+        del adj, adj_list, adj_block_diag
 
         stack_X = X.view(bs*n, he)
         edge_attr = stack_X[src] * stack_X[dst]         # (|E|, he)
         E = utils.to_dense_adj(edge_index=edge_index, batch=batch, edge_attr=edge_attr)
         
+        diag_mask = torch.eye(n)
+        diag_mask = ~diag_mask.type_as(E).bool()
+        diag_mask = diag_mask.unsqueeze(0).unsqueeze(-1).expand(bs, -1, -1, -1)
+
         new_E = self.mlp_out(E)
         new_E = (new_E + new_E.transpose(1, 2)) / 2
         E = new_E * diag_mask
@@ -185,6 +186,7 @@ class GNNLayer(nn.Module):
         adj_list = [adj[i] for i in range(bs)]
         adj_block_diag = torch.block_diag(*adj_list)
         edge_index = torch.nonzero(adj_block_diag).t()
+        del adj, adj_list, adj_block_diag
     
         X = torch.cat([stack_X], dim=-1)
         X = self.aggr_X(X, edge_index)

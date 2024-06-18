@@ -1,11 +1,13 @@
 import torch
 torch.cuda.empty_cache()
+# print(torch.multiprocessing.get_start_method())
+# torch.multiprocessing.set_start_method('spawn')
+# torch.set_float32_matmul_precision('medium' | 'high')
 import random
+import multiprocessing
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
-import pytorch_lightning as pl
-# pl.seed_everything(42)
 import argparse
 import warnings
 import logging
@@ -106,7 +108,7 @@ def main(cfg: DictConfig):
         checkpoint_callback = ModelCheckpoint(dirpath=f"checkpoints/{dataset_config['name']}/{cfg.general.name}",
                                               filename='{epoch}',
                                               monitor='val/epoch_NLL',
-                                              save_top_k=10,
+                                              save_top_k=5,
                                               mode='min',
                                               every_n_epochs=1)
         last_ckpt_save = ModelCheckpoint(dirpath=f"checkpoints/{dataset_config['name']}/{cfg.general.name}", filename='last', every_n_epochs=1)
@@ -140,8 +142,8 @@ def main(cfg: DictConfig):
                     train_dataloaders=datamodule.train_dataloader(),
                     val_dataloaders=datamodule.val_dataloader(), 
                     ckpt_path=cfg.general.resume)
-        trainer.test(model,
-                    dataloaders=datamodule.test_dataloader())
+        # trainer.test(model,
+        #              dataloaders=datamodule.test_dataloader())
     elif cfg.general.evaluate_all_checkpoints: # evaluate all checkpoints
         directory = pathlib.Path(cfg.general.test_only).parents[0]
         print("Directory:", directory)

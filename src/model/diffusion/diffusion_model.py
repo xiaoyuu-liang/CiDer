@@ -81,7 +81,7 @@ class GraphJointDiffuser(pl.LightningModule):
             e_marginals = self.dataset_info.edge_types
 
             print(f"""Marginal distribution of the classes: 
-                  {np.vectorize(lambda x: "{:.4f}".format(x))(x_marginals)} for nodes, 
+                  {np.vectorize(lambda x: "{:.4f}".format(x))(x_marginals[:10])} for nodes, 
                   {np.vectorize(lambda x: "{:.4f}".format(x))(e_marginals)} for edges""")
             self.transition_model = MarginalUniformTransition(x_marginals=x_marginals, e_marginals=e_marginals,
                                                               y_classes=self.ydim_output)
@@ -134,7 +134,7 @@ class GraphJointDiffuser(pl.LightningModule):
         
         self.train_metrics(masked_pred_X=pred.X, masked_pred_E=pred.E, true_X=X, true_E=E,
                            log=i % self.log_every_steps == 0)
-
+        
         return {'loss': loss}
     
     def on_train_epoch_start(self) -> None:
@@ -142,6 +142,7 @@ class GraphJointDiffuser(pl.LightningModule):
         self.start_epoch_time = time.time()
         self.train_loss.reset()
         self.train_metrics.reset()
+        torch.cuda.empty_cache()
 
     def on_train_epoch_end(self) -> None:
         to_log = self.train_loss.log_epoch_metrics()
@@ -173,6 +174,7 @@ class GraphJointDiffuser(pl.LightningModule):
         self.val_E_kl.reset()
         self.val_X_logp.reset()
         self.val_E_logp.reset()
+        torch.cuda.empty_cache()
     
     def on_validation_epoch_end(self) -> None:
         metrics = [self.val_nll.compute(), self.val_X_kl.compute() * self.T, self.val_E_kl.compute() * self.T,
@@ -218,6 +220,7 @@ class GraphJointDiffuser(pl.LightningModule):
         self.test_X_kl.reset()
         self.test_E_kl.reset()
         self.test_X_logp.reset()
+        torch.cuda.empty_cache()
         self.test_E_logp.reset()
         if self.local_rank == 0:
             utils.setup_wandb(self.cfg)
@@ -453,7 +456,7 @@ class GraphJointDiffuser(pl.LightningModule):
         diag_mask = diag_mask.unsqueeze(0).expand(probE0.size(0), -1, -1)
         probE0[diag_mask] = torch.ones(self.Edim_output).type_as(probE0)
 
-        return utils.PlaceHolder(X=probX0, E=probE0, y=proby0)
+        return utils.PlaceHolder(X=probX0+1e-9, E=probE0+1e-9, y=proby0)
     
     @torch.no_grad()
     def denoised_smoothing(self, dataloader, classifier=None, hparams=None):
@@ -553,13 +556,8 @@ class GraphJointDiffuser(pl.LightningModule):
             x = denoised_data.X[graph][mask].float()
             edge_index = torch.LongTensor(denoised_data.E[graph][mask][:, mask].nonzero()).transpose(0, 1)
             y = data.labels[graph][data.target_node[graph]]
-            data.target_node[graph]
 
             denoised_graph = torch_geometric.data.Data(x=x, edge_index=edge_index, y=y, target_node=data.target_node[graph])
-            # denoised_graph = torch_geometric.data.Data(x=noisy_data['X_t'][graph].argmax(-1).float().cpu(), # (n, dx)
-            #                                            edge_index=torch.LongTensor(noisy_data['E_t'][graph].cpu().argmax(-1).nonzero()).transpose(0, 1), # (2, |E|)
-            #                                            y=data.labels[graph][data.target_node[graph]],
-            #                                            target_node=data.target_node[graph])
             denoised_graphs.append(denoised_graph)
         return denoised_graphs
     

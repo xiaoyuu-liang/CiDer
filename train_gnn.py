@@ -61,7 +61,7 @@ seml.setup_logger(ex)
 def config():
     seed = 42
     model = 'gcn'
-    dataset = 'blogcatalog'
+    dataset = 'coauthor_cs'
 
 @ex.automain
 def run(seed, model, dataset, _run, _log):  

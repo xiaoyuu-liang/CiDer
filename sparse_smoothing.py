@@ -15,7 +15,7 @@ def config():
             db_collection, overwrite=overwrite))
 
     # default params
-    dataset = 'blogcatalog'
+    dataset = 'coauthor_cs'
     n_per_class = 20
     seed = 42
 

@@ -122,6 +122,7 @@ def main(cfg: DictConfig):
     name = cfg.general.name
     use_gpu = (isinstance(cfg.general.gpus, str) or cfg.general.gpus > 0) and torch.cuda.is_available()
     device = 'cuda:' + cfg.general.gpus if isinstance(cfg.general.gpus, str) else 'cuda:0' if cfg.general.gpus > 0 else 'cpu'
+    print(f"Using device {device}")
 
     model = GraphJointDiffuser(cfg, **model_kwargs)
     trainer = Trainer(gradient_clip_val=cfg.train.clip_grad,

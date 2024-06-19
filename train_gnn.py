@@ -30,7 +30,9 @@ def train_gnn(model: str, dataset: str, seed: int, save_path: str, device: torch
     print(f'Number of nodes: {graph.num_nodes()}')
 
     data = SpG2PyG(graph, random_seed=seed)
-    print(len(data.y))
+
+    print(f'Number of classes: {graph.num_classes}')
+    print(f'Number of features: {graph.num_node_attr}')
 
     # Setup model
     if model == 'gcn':

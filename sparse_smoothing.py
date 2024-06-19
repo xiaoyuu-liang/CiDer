@@ -15,7 +15,7 @@ def config():
             db_collection, overwrite=overwrite))
 
     # default params
-    dataset = 'coauthor_cs'
+    dataset = 'pubmed'
     n_per_class = 20
     seed = 42
 
@@ -31,14 +31,14 @@ def config():
     pf_plus_adj = 0.0
     pf_minus_adj = 0.0
 
-    pf_plus_att = 0.01
-    pf_minus_att = 0.65
+    pf_plus_att = 0.07
+    pf_minus_att = 0.59
 
     n_samples_train = 1
     batch_size_train = 1
 
     n_samples_pre_eval = 10
-    n_samples_eval = 1000
+    n_samples_eval = 100
     batch_size_eval = 10
 
     mean_softmax = False
@@ -126,7 +126,7 @@ def run(_config, dataset, n_per_class, seed,
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if model.lower() == 'gcn':
-        model = GCN(nfeat=graph.num_node_attr, nhid=16, nclass=graph.num_classes, device=device)
+        model = GCN(nfeat=graph.num_node_attr, nlayers=1, nhid=16, nclass=graph.num_classes, device=device)
     elif model.lower() == 'gat':
         model = GAT(nfeat=graph.num_node_attr, nhid=2, heads=8, nclass=graph.num_classes, device=device)
     elif model.lower() == 'appnp':

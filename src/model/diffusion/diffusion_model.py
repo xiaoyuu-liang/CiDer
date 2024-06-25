@@ -540,6 +540,10 @@ class GraphJointDiffuser(pl.LightningModule):
         noisy_data = self.apply_noise(dense_data.X, dense_data.E, data.y, node_mask, t_X, t_E)
         extra_data = self.compute_extra_data(noisy_data)
         pred = self.forward(noisy_data, extra_data, node_mask)
+        # pred = utils.PlaceHolder(X=torch.tensor(noisy_data['X_t'], dtype=float), 
+        #                          E=torch.tensor(noisy_data['E_t'], dtype=float), 
+        #                          y=torch.tensor(noisy_data['y_t'], dtype=float))
+        # pred = pred.mask(node_mask)
             
         unnormalized_prob_X = F.softmax(pred.X, dim=-1)
         unnormalized_prob_X[torch.sum(unnormalized_prob_X, dim=-1) == 0] = 1e-5

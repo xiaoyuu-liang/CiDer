@@ -15,7 +15,7 @@ def config():
             db_collection, overwrite=overwrite))
 
     # default params
-    dataset = 'coauthor_cs'
+    dataset = 'cora'
     n_per_class = 20
     seed = 42
 
@@ -28,8 +28,8 @@ def config():
     n_hidden = 64
     p_dropout = 0.5
 
-    pf_plus_adj = 0.0
-    pf_minus_adj = 0.0
+    pf_plus_adj = 0.00
+    pf_minus_adj = 0.00
 
     pf_plus_att = 0.01
     pf_minus_att = 0.65
@@ -38,7 +38,7 @@ def config():
     batch_size_train = 1
 
     n_samples_pre_eval = 10
-    n_samples_eval = 1000
+    n_samples_eval = 10000
     batch_size_eval = 10
 
     mean_softmax = False
@@ -126,7 +126,7 @@ def run(_config, dataset, n_per_class, seed,
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if model.lower() == 'gcn':
-        model = GCN(nfeat=graph.num_node_attr, nhid=16, nclass=graph.num_classes, device=device)
+        model = GCN(nfeat=graph.num_node_attr, nlayers=1, nhid=16, nclass=graph.num_classes, device=device)
     elif model.lower() == 'gat':
         model = GAT(nfeat=graph.num_node_attr, nhid=2, heads=8, nclass=graph.num_classes, device=device)
     elif model.lower() == 'appnp':
@@ -191,6 +191,7 @@ def run(_config, dataset, n_per_class, seed,
     db_collection = _config['db_collection']
     
     # torch.save(model.state_dict(), save_name)
+    # print(f'Saved model to {save_name}')
 
     binary_class_cert = (grid_base > 0.5)[idx['test']].T
     multi_class_cert = (grid_lower > grid_upper)[idx['test']].T

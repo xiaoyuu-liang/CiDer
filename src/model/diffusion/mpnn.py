@@ -137,6 +137,7 @@ class GNN(nn.Module):
 
         X = self.gnn_out(X)         # (bs, n, he)
         _, _, he = X.shape
+        del X_list, y_expand
 
         # get edge features
         batch = torch.arange(bs, device=E.device).view(-1, 1).repeat(1, n).view(-1)
@@ -151,14 +152,14 @@ class GNN(nn.Module):
         stack_X = X.view(bs*n, he)
         edge_attr = stack_X[src] * stack_X[dst]         # (|E|, he)
         E = utils.to_dense_adj(edge_index=edge_index, batch=batch, edge_attr=edge_attr)
+        del edge_index, src, dst, stack_X, edge_attr, batch
         
-        diag_mask = torch.eye(n)
-        diag_mask = ~diag_mask.type_as(E).bool()
+        diag_mask = ~torch.eye(E.size(1), device=E.device, dtype=torch.bool)
         diag_mask = diag_mask.unsqueeze(0).unsqueeze(-1).expand(bs, -1, -1, -1)
 
-        new_E = self.mlp_out(E)
-        new_E = (new_E + new_E.transpose(1, 2)) / 2
-        E = new_E * diag_mask
+        E = self.mlp_out(E)
+        E = (E + E.transpose(1, 2)) / 2
+        E = E * diag_mask
 
         return E
 

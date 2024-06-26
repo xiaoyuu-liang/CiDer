@@ -3,6 +3,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
+import matplotlib.colors as mcolors
 import seaborn as sns
 import argparse
 
@@ -41,38 +42,58 @@ def main():
         x_coords_adj, y_coords_adj, x_coords_att, y_coords_att = cert[1]
         cert_acc = cert[2]
 
-        heatmap = np.zeros((max_ra_adj, max_rd_adj, max_ra_att, max_rd_att))
+        heatmap = np.zeros((max_ra_adj-1, max_rd_adj-2, max_ra_att-1, max_rd_att-2))
         for x_adj, y_adj, x_att, y_att, acc in zip(x_coords_adj, y_coords_adj, x_coords_att, y_coords_att, cert_acc):
             heatmap[x_adj, y_adj, x_att, y_att] = acc
+        heatmap[0, 0, 0, 0] = torch.load(path)['majority_acc']
         
         if joint[0] == 'adj':
             heatmap = heatmap[joint[1], joint[2], :, :]
+            max_ra, max_rd = max_ra_att, max_rd_att
         elif joint[0] == 'att':
             heatmap = heatmap[:, :, joint[1], joint[2]]
+            max_ra, max_rd = max_ra_adj, max_rd_adj
         else:
             raise ValueError("joint certificate slice must be either 'adj' or 'att'")
     else:
         max_ra, max_rd = cert[0]
+        print(f'max radius for singular certificate: {max_ra-2, max_rd-2}')
         x_coords, y_coords = cert[1]
         acc = cert[2]
 
-        heatmap = np.zeros((max_ra, max_rd))
+        heatmap = np.zeros((max_ra-1, max_rd-1))
         for x, y, acc in zip(x_coords, y_coords, acc):
             heatmap[x, y] = acc
+        heatmap[0, 0] = torch.load(path)['majority_acc']
     
     # scale_factor = 10**2
     # heatmap = heatmap * scale_factor
 
     # Define your custom colors
-    colors = ["#5385bd", "#9bc7df", "#dff3f8"] 
+    colors = ["#ffffff", "#dff3f8", "#9bc7df", "#5385bd"] 
     n_bins = 100  # Increase this number for a smoother transition between colors
     cmap_name = "SkyCmap"
-
-    # Create the colormap
     sky_cmap = LinearSegmentedColormap.from_list(cmap_name, colors, N=n_bins)
 
+    log_heatmap = np.log10(heatmap + 1e-5)
+
     plt.figure(figsize=(6, 2))
-    ax = sns.heatmap(heatmap, annot=True, cmap=sky_cmap, fmt=".2f", cbar_kws={'label': 'Accuracy gap'})
+    ax = sns.heatmap(log_heatmap, cmap=sky_cmap, fmt=".2f", cbar=False, annot=heatmap, annot_kws={"size": 4})
+
+    sm = plt.cm.ScalarMappable(cmap=sky_cmap, norm=mcolors.Normalize(vmin=heatmap.min()+1e-5, vmax=heatmap.max()))
+    cbar = plt.colorbar(sm, ax=ax, format='% .2f')
+    cbar.set_label('Certified accuracy')
+    cbar.outline.set_visible(False)
+
+    level = 0.3
+    for i in range(heatmap.shape[0]):
+        for j in range(heatmap.shape[1]):
+            if heatmap[i, j] >= level:
+                if heatmap[i+1, j] < level:
+                    plt.step([j, j+1], [i+1, i+1], where='mid', color='orange')
+                if heatmap[i, j+1] < level:
+                    plt.step([j+1, j+1], [i, i+1], where='mid', color='orange')
+
     if joint:
         if joint[0] == 'adj':
             ax.set_xlabel("Budget $\Delta_X^-$")

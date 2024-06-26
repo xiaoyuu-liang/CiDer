@@ -5,7 +5,7 @@ wandb: offline                  # online | offline | disabled
 gpus: 4                        # Multi-gpu is not implemented on this branch
 
 resume: null            # If resume, path to ckpt file from outputs directory in main directory
-test_only: checkpoints/cora/mpnn_denoiser/star.ckpt        # Use relative path
+test_only: checkpoints/citeseer/mpnn_denoiser/last-v3.ckpt        # Use relative path
 
 check_val_every_n_epochs: 5
 sample_every_val: 4

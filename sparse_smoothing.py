@@ -15,7 +15,7 @@ def config():
             db_collection, overwrite=overwrite))
 
     # default params
-    dataset = 'cora'
+    dataset = 'citeseer'
     n_per_class = 20
     seed = 42
 
@@ -31,14 +31,14 @@ def config():
     pf_plus_adj = 0.00
     pf_minus_adj = 0.00
 
-    pf_plus_att = 0.01
-    pf_minus_att = 0.65
+    pf_plus_att = 0.00
+    pf_minus_att = 1e-5
 
     n_samples_train = 1
     batch_size_train = 1
 
     n_samples_pre_eval = 10
-    n_samples_eval = 10000
+    n_samples_eval = 1000
     batch_size_eval = 10
 
     mean_softmax = False

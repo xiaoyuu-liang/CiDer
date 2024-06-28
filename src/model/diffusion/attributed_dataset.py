@@ -95,7 +95,7 @@ class AttributedGraphDataset(InMemoryDataset):
         self.hop = int(root[-2])
         self.standard = standard
         self.graph = load_and_standardize(self.file, standard=self.standard)
-        self.num_graphs = self.graph.num_nodes() * self.hop
+        self.num_graphs = self.graph.num_nodes()
 
         test_len = int(round(self.num_graphs * 0.2))
         train_len = int(round((self.num_graphs - test_len) * 0.8))

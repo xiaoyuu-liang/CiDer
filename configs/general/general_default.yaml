@@ -1,11 +1,11 @@
 # General settings
-name: 'async_pilot'      # Warning: 'debug' and 'test' are reserved name that have a special behavior
+name: 'mpnn_denoiser7'      # Warning: 'debug' and 'test' are reserved name that have a special behavior
 
-wandb: disabled                  # online | offline | disabled
-gpus: 1                        # Multi-gpu is not implemented on this branch
+wandb: online                  # online | offline | disabled
+gpus: 4                        # Multi-gpu is not implemented on this branch
 
 resume: null            # If resume, path to ckpt file from outputs directory in main directory
-test_only: checkpoints/cora/async_pilot/last-v1.ckpt         # Use relative path
+test_only: checkpoints/citeseer/mpnn_denoiser7/epoch=989.ckpt        # Use relative path
 
 check_val_every_n_epochs: 5
 sample_every_val: 4

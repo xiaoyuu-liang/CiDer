@@ -163,7 +163,7 @@ def main(cfg: DictConfig):
         nclass = len(dataset_infos.node_types)
         # Setup model
         if classifier_name == 'gcn':
-            classifier = GCN(nfeat=nfeat, nhid=16, nclass=nclass, device=device)
+            classifier = GCN(nfeat=nfeat, nlayers=1, nhid=16, nclass=nclass, device=device)
         elif classifier_name == 'gat':
             classifier = GAT(nfeat=nfeat, nhid=2, heads=8, nclass=nclass, device=device)
         elif classifier_name == 'appnp':
@@ -175,13 +175,17 @@ def main(cfg: DictConfig):
 
         classifier.eval()
         classifier.to(device)
-        hparams = OmegaConf.to_container(denoiser_config)
-        smoothing_config = model.compute_noise(t_X=denoiser_config.attr_noise_scale, t_E=denoiser_config.adj_noise_scale)   
-        hparams['smoothing_config'] = smoothing_config
-        dict_to_save = model.denoised_smoothing(dataloader=datamodule.test_dataloader(),
-                                                classifier=classifier,
-                                                hparams=hparams)
-        general_utils.save_cetrificate(dict_to_save, dataset_config, hparams, f"checkpoints/{dataset_config['name']}/{cfg.general.name}")
+        for t_X in [0, 100, 200, 300, 350]:
+            for t_E in [0, 100, 200, 300, 350]:
+                denoiser_config.attr_noise_scale = t_X
+                denoiser_config.adj_noise_scale = t_E
+                hparams = OmegaConf.to_container(denoiser_config)
+                smoothing_config = model.compute_noise(t_X=denoiser_config.attr_noise_scale, t_E=denoiser_config.adj_noise_scale)   
+                hparams['smoothing_config'] = smoothing_config
+                dict_to_save = model.denoised_smoothing(dataloader=datamodule.test_dataloader(),
+                                                        classifier=classifier,
+                                                        hparams=hparams)
+                general_utils.save_cetrificate(dict_to_save, dataset_config, hparams, f"checkpoints/{dataset_config['name']}/{cfg.general.name}")
         
 
 if __name__ == '__main__':

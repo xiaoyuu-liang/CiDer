@@ -188,8 +188,7 @@ def SpG2PyG(graph: SparseGraph, random_seed,
     ----------
     graph: SparseGraph The graph to convert.
     random_seed: int Random seed for the split.
-    split: dict The split to use. If None, use the default split.
-        default: {'train_examples_per_class':20, 'val_examples_per_class': 30, 'test_examples_per_class': None}
+    split: dict The split to use.
 
     Returns
     -------
@@ -216,8 +215,8 @@ def SpG2PyG(graph: SparseGraph, random_seed,
     return data
 
 
-def visualize_graph(graph: SparseGraph, path='graphs/graph.png',
-                    node_size = 15, font_size = 5, width = 0.5, figsize=(5, 5), dpi=300):
+def visualize_graph(graph: SparseGraph, path='graph.png',
+                    node_size = 7, font_size = 5, width = 0.5, figsize=(5, 5), dpi=300):
     """
     Visualize the graph.
     """
@@ -232,8 +231,8 @@ def visualize_graph(graph: SparseGraph, path='graphs/graph.png',
 
     # Draw the graph
     plt.figure(figsize=figsize)
-    nx.draw(G, labels=labels, node_size=node_size, font_size=font_size, font_color='black', edge_color='gray', width=width)
-    plt.savefig('graphs/subgraph.png', dpi=dpi)
+    nx.draw(G, node_size=node_size, font_size=font_size, font_color='black', edge_color='gray', width=width)
+    plt.savefig('graph.png', dpi=dpi)
     plt.show()
 
 

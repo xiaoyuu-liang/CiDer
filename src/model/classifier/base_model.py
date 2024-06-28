@@ -13,7 +13,7 @@ class BaseModel(nn.Module):
         super(BaseModel, self).__init__()   
         pass
 
-    def fit(self, data, train_iters=1000, initialize=True, verbose=True, patience=100, **kwargs):
+    def fit(self, data, train_iters=1000, initialize=True, verbose=True, patience=500, **kwargs):
         if initialize:
             self.initialize()
 

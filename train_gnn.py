@@ -31,14 +31,11 @@ def train_gnn(model: str, dataset: str, seed: int, save_path: str, device: torch
 
     data = SpG2PyG(graph, random_seed=seed)
 
-    print(f'Number of classes: {graph.num_classes}')
-    print(f'Number of features: {graph.num_node_attr}')
-
     # Setup model
     if model == 'gcn':
-        model = GCN(nfeat=graph.num_node_attr, nhid=16, nclass=graph.num_classes, device=device)
+        model = GCN(nfeat=graph.num_node_attr, nlayers=1, nhid=16, nclass=graph.num_classes, device=device)
     elif model == 'gat':
-        model = GAT(nfeat=graph.num_node_attr, nhid=2, heads=8, nclass=graph.num_classes, device=device)
+        model = GAT(nfeat=graph.num_node_attr, nlayers=1, nhid=2, heads=8, nclass=graph.num_classes, device=device)
     elif model == 'appnp':
         model = APPNP(nfeat=graph.num_node_attr, nhid=16, K=8, alpha=0.15, nclass=graph.num_classes, device=device)
     elif model == 'sage':
@@ -51,6 +48,7 @@ def train_gnn(model: str, dataset: str, seed: int, save_path: str, device: torch
 
     # Save model
     torch.save(model.state_dict(), save_path)
+    print(f'Model saved at {save_path}')
 
 
 from sacred import Experiment
@@ -61,9 +59,9 @@ seml.setup_logger(ex)
 
 @ex.config
 def config():
-    seed = 42
+    seed = 12
     model = 'gcn'
-    dataset = 'coauthor_cs'
+    dataset = 'citeseer'
 
 @ex.automain
 def run(seed, model, dataset, _run, _log):  
@@ -74,4 +72,4 @@ def run(seed, model, dataset, _run, _log):
     logging.info(f'Using device {device}')
         
     train_gnn(model=model, dataset=dataset, seed=seed, 
-            save_path=f'gnn_checkpoints/{model}_{dataset}.pt', device=device)
+            save_path=f'gnn_checkpoints/{model}_{dataset}_l1.pt', device=device)

@@ -7,11 +7,14 @@ import seaborn as sns
 import argparse
 
 datasets = ['cora', 'cora_ml', 'citeseer', 'pubmed']
-naive_acc = [0.74, 0.71, 0.61, 0.72]
+naive_acc = [0.74, 0.71, 0.6580, 0.72]
 
 flip_prob_X = [0.00, 0.10, 0.35, 0.65, 0.79]
-flip_prob_E = [0.00, 0.10, 0.35, 0.66, 0.80]
+flip_prob_X_coraml = [0.00, 0.10, 0.35, 0.65, 0.78]
 flip_prob_X_pubmed = [0.00, 0.01, 0.02, 0.59, 0.04]
+
+flip_prob_E = [0.00, 0.10, 0.35, 0.66, 0.80]
+
 
 cider_cora_acc = [
 # attr  0,   100,  200,  300,  350  
@@ -46,25 +49,25 @@ sparse_coraml_acc = [
     [0.7779, 0.7770, 0.7916, 0.7933, 0.7675], # adj 100
     [0.7822, 0.7826, 0.7940, 0.7909, 0.7866], # adj 200
     [0.7561, 0.7565, 0.7905, 0.7866, 0.7858], # adj 300
-    [0.7090, 0.7368, 0.7660, 0.7628, 0.74], # adj 350
+    [0.7090, 0.7368, 0.7660, 0.7628, 0.7636], # adj 350
 ]
 
 cider_citeseer_acc = [
 # attr  0,   100,  200,  300,  350  
-    [0.6299, 0.74, 0.74, 0.74, 0.74], # adj 0
-    [0.74, 0.74, 0.74, 0.74, 0.74], # adj 100
-    [0.74, 0.74, 0.74, 0.74, 0.74], # adj 200
-    [0.74, 0.74, 0.74, 0.6858, 0.74], # adj 300
-    [0.74, 0.74, 0.74, 0.74, 0.74], # adj 350
+    [0.7205, 0., 0., 0., 0.], # adj 0
+    [0.7175, 0., 0., 0., 0.], # adj 100
+    [0.7100, 0., 0., 0., 0.], # adj 200
+    [0.7069, 0., 0., 0., 0.], # adj 300
+    [0.6979, 0., 0., 0., 0.], # adj 350
 ]
 
 sparse_citeseer_acc = [
 # attr  0,   100,  200,  300,  350
-    [0.6588, 0.74, 0.74, 0.74, 0.74], # adj 0
-    [0.74, 0.74, 0.74, 0.74, 0.74], # adj 100
-    [0.74, 0.74, 0.74, 0.74, 0.74], # adj 200
-    [0.74, 0.74, 0.74, 0.6652, 0.74], # adj 300
-    [0.74, 0.74, 0.74, 0.74, 0.74], # adj 350
+    [0.6572, 0.6428, 0.6540, 0.6684, 0.6802], # adj 0
+    [0.6332, 0.6475, 0.6578, 0.6674, 0.6743], # adj 100
+    [0.6352, 0.6460, 0.6572, 0.6599, 0.6733], # adj 200
+    [0.6193, 0.6262, 0.6374, 0.6652, 0.6807], # adj 300
+    [0.6107, 0.6080, 0.6406, 0.6535, 0.6487], # adj 350
 ]
 
 cider_pubmed_acc = [
@@ -107,18 +110,20 @@ def main():
 
     # Draw heatmap
     plt.figure(figsize=(10, 8))
-    ax = sns.heatmap(acc_gap_naive, annot=True, cmap=mint_cmap, fmt=".2f", xticklabels=flip_prob_X, yticklabels=flip_prob_E, annot_kws={"size":14})
+    ax = sns.heatmap(acc_gap_sparse, annot=True, cmap=mint_cmap, fmt=".2f", 
+                     xticklabels=flip_prob_X, yticklabels=flip_prob_E, annot_kws={"size":14},
+                     vmin=-0.05, vmax=0.15,
+                     cbar_kws={'ticks': np.linspace(-0.05, 0.15, 6)})
     plt.xlabel("Flip Probability X", fontsize=20)
     plt.ylabel("Flip Probability E", fontsize=20)
     plt.gca().invert_yaxis()
     # Set color bar label font size
     cbar = ax.collections[0].colorbar
-    cbar.set_label('Clean accuracy gap', size=14)
+    cbar.set_label('Clean accuracy gap', size=20)
+    cbar.ax.yaxis.set_tick_params(labelsize=20)
+    cbar.ax.tick_params(labelsize=16)
 
-    # Set color bar tick label font size
-    cbar.ax.tick_params(labelsize=10)
-
-    plt.savefig("figs/naive_cora.png")
+    plt.savefig("figs/sparse_cora.png")
     plt.show()
     
     return

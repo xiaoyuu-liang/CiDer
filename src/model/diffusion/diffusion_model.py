@@ -499,7 +499,9 @@ class GraphJointDiffuser(pl.LightningModule):
         majority_acc = majority_correct.mean()
         print(f'Majority vote accuracy: {majority_acc}')
         
-        certificate = certify(majority_correct, pre_votes.cpu(), votes.cpu(), hparams)
+        certificate = {}
+        if hparams['certify']:
+            certificate = certify(majority_correct, pre_votes.cpu(), votes.cpu(), hparams)
         certificate['clean_acc'] = clean_acc
         certificate['majority_acc'] = majority_acc
         certificate['correct'] = majority_correct.tolist()
@@ -608,8 +610,8 @@ class GraphJointDiffuser(pl.LightningModule):
 
         X_flip_prob = Qtb_X.X.squeeze(0).mean(dim=0)
         E_flip_prob = Qtb_E.E.squeeze(0)
-        print(f'X_p_plus: {X_flip_prob[0][1]:.2f}, X_p_minus: {X_flip_prob[1][0]:.2f}')
-        print(f'E_p_plus: {E_flip_prob[0][1]:.2f}, E_p_minus: {E_flip_prob[1][0]:.2f}')
+        print(f'X_p_plus: {X_flip_prob[0][1]:.4f}, X_p_minus: {X_flip_prob[1][0]:.4f}')
+        print(f'E_p_plus: {E_flip_prob[0][1]:.4f}, E_p_minus: {E_flip_prob[1][0]:.4f}')
         return {'p': 1, 'smoothing_distribution': "sparse", 'append_indicator': False,
                 'p_plus': X_flip_prob[0][1].item(), 'p_minus': X_flip_prob[1][0].item(),
                 'p_plus_adj': E_flip_prob[0][1].item(), 'p_minus_adj': E_flip_prob[1][0].item()}

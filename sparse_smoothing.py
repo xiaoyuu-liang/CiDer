@@ -28,11 +28,11 @@ def config():
     n_hidden = 64
     p_dropout = 0.5
 
-    pf_plus_adj = 0.00
-    pf_minus_adj = 0.00
+    pf_plus_adj = 0.0000
+    pf_minus_adj = 0.0001
 
-    pf_plus_att = 0.00
-    pf_minus_att = 1e-5
+    pf_plus_att = 0.0068
+    pf_minus_att = 0.7970
 
     n_samples_train = 1
     batch_size_train = 1
@@ -164,28 +164,28 @@ def run(_config, dataset, n_per_class, seed,
 
     agreement = (votes.argmax(1) == pre_votes.argmax(1)).mean() 
 
-    # we are perturbing ONLY the ATTRIBUTES
-    if pf_plus_adj == 0 and pf_minus_adj == 0:
-        print('Just ATT')
-        grid_base, grid_lower, grid_upper = binary_certificate(
-            votes=votes, pre_votes=pre_votes, n_samples=n_samples_eval, conf_alpha=conf_alpha,
-            pf_plus=pf_plus_att, pf_minus=pf_minus_att)
-    # we are perturbing ONLY the GRAPH
-    elif pf_plus_att == 0 and pf_minus_att == 0:
-        print('Just ADJ')
-        grid_base, grid_lower, grid_upper = binary_certificate(
-            votes=votes, pre_votes=pre_votes, n_samples=n_samples_eval, conf_alpha=conf_alpha,
-            pf_plus=pf_plus_adj, pf_minus=pf_minus_adj)
-    else:
-        grid_base, grid_lower, grid_upper = joint_binary_certificate(
-            votes=votes, pre_votes=pre_votes, n_samples=n_samples_eval, conf_alpha=conf_alpha,
-            pf_plus_adj=pf_plus_adj, pf_minus_adj=pf_minus_adj,
-            pf_plus_att=pf_plus_att, pf_minus_att=pf_minus_att)
+    # # we are perturbing ONLY the ATTRIBUTES
+    # if pf_plus_adj == 0 and pf_minus_adj == 0:
+    #     print('Just ATT')
+    #     grid_base, grid_lower, grid_upper = binary_certificate(
+    #         votes=votes, pre_votes=pre_votes, n_samples=n_samples_eval, conf_alpha=conf_alpha,
+    #         pf_plus=pf_plus_att, pf_minus=pf_minus_att)
+    # # we are perturbing ONLY the GRAPH
+    # elif pf_plus_att == 0 and pf_minus_att == 0:
+    #     print('Just ADJ')
+    #     grid_base, grid_lower, grid_upper = binary_certificate(
+    #         votes=votes, pre_votes=pre_votes, n_samples=n_samples_eval, conf_alpha=conf_alpha,
+    #         pf_plus=pf_plus_adj, pf_minus=pf_minus_adj)
+    # else:
+    #     grid_base, grid_lower, grid_upper = joint_binary_certificate(
+    #         votes=votes, pre_votes=pre_votes, n_samples=n_samples_eval, conf_alpha=conf_alpha,
+    #         pf_plus_adj=pf_plus_adj, pf_minus_adj=pf_minus_adj,
+    #         pf_plus_att=pf_plus_att, pf_minus_att=pf_minus_att)
 
-    mean_max_ra_base = (grid_base > 0.5)[:, :, 0].argmin(1).mean()
-    mean_max_rd_base = (grid_base > 0.5)[:, 0, :].argmin(1).mean()
-    mean_max_ra_loup = (grid_lower >= grid_upper)[:, :, 0].argmin(1).mean()
-    mean_max_rd_loup = (grid_lower >= grid_upper)[:, 0, :].argmin(1).mean()
+    # mean_max_ra_base = (grid_base > 0.5)[:, :, 0].argmin(1).mean()
+    # mean_max_rd_base = (grid_base > 0.5)[:, 0, :].argmin(1).mean()
+    # mean_max_ra_loup = (grid_lower >= grid_upper)[:, :, 0].argmin(1).mean()
+    # mean_max_rd_loup = (grid_lower >= grid_upper)[:, 0, :].argmin(1).mean()
 
     run_id = _config['overwrite']
     db_collection = _config['db_collection']
@@ -193,22 +193,27 @@ def run(_config, dataset, n_per_class, seed,
     # torch.save(model.state_dict(), save_name)
     # print(f'Saved model to {save_name}')
 
-    binary_class_cert = (grid_base > 0.5)[idx['test']].T
-    multi_class_cert = (grid_lower > grid_upper)[idx['test']].T
+    # binary_class_cert = (grid_base > 0.5)[idx['test']].T
+    # multi_class_cert = (grid_lower > grid_upper)[idx['test']].T
 
     # the returned result will be written into the database
+    # results = {
+    #     'clean_acc': acc_clean['test'],
+    #     'majority_acc': acc_majority['test'],
+    #     'correct': correct.tolist(),
+    #     "binary": {
+    #         "ratios": minimize(binary_class_cert.mean(-1).T),
+    #         "cert_acc": minimize((correct * binary_class_cert).mean(-1).T)
+    #     },
+    #     "multiclass": {
+    #         "ratios": minimize(multi_class_cert.mean(-1).T),
+    #         "cert_acc": minimize((correct * multi_class_cert).mean(-1).T)
+    #     }
+    # }
+
     results = {
         'clean_acc': acc_clean['test'],
-        'majority_acc': acc_majority['test'],
-        'correct': correct.tolist(),
-        "binary": {
-            "ratios": minimize(binary_class_cert.mean(-1).T),
-            "cert_acc": minimize((correct * binary_class_cert).mean(-1).T)
-        },
-        "multiclass": {
-            "ratios": minimize(multi_class_cert.mean(-1).T),
-            "cert_acc": minimize((correct * multi_class_cert).mean(-1).T)
-        }
+        'majority_acc': acc_majority['test']
     }
     
     hparams = {

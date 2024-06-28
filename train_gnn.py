@@ -33,7 +33,7 @@ def train_gnn(model: str, dataset: str, seed: int, save_path: str, device: torch
 
     # Setup model
     if model == 'gcn':
-        model = GCN(nfeat=graph.num_node_attr, nlayers=2,nhid=16, nclass=graph.num_classes, device=device)
+        model = GCN(nfeat=graph.num_node_attr, nlayers=1, nhid=16, nclass=graph.num_classes, device=device)
     elif model == 'gat':
         model = GAT(nfeat=graph.num_node_attr, nlayers=1, nhid=2, heads=8, nclass=graph.num_classes, device=device)
     elif model == 'appnp':
@@ -48,6 +48,7 @@ def train_gnn(model: str, dataset: str, seed: int, save_path: str, device: torch
 
     # Save model
     torch.save(model.state_dict(), save_path)
+    print(f'Model saved at {save_path}')
 
 
 from sacred import Experiment
@@ -58,9 +59,9 @@ seml.setup_logger(ex)
 
 @ex.config
 def config():
-    seed = 42
-    model = 'appnp'
-    dataset = 'pubmed'
+    seed = 12
+    model = 'gcn'
+    dataset = 'citeseer'
 
 @ex.automain
 def run(seed, model, dataset, _run, _log):  
@@ -71,4 +72,4 @@ def run(seed, model, dataset, _run, _log):
     logging.info(f'Using device {device}')
         
     train_gnn(model=model, dataset=dataset, seed=seed, 
-            save_path=f'gnn_checkpoints/{model}_{dataset}.pt', device=device)
+            save_path=f'gnn_checkpoints/{model}_{dataset}_l1.pt', device=device)

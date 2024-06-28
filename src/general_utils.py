@@ -188,8 +188,7 @@ def SpG2PyG(graph: SparseGraph, random_seed,
     ----------
     graph: SparseGraph The graph to convert.
     random_seed: int Random seed for the split.
-    split: dict The split to use. If None, use the default split.
-        default: {'train_examples_per_class':20, 'val_examples_per_class': 30, 'test_examples_per_class': None}
+    split: dict The split to use.
 
     Returns
     -------

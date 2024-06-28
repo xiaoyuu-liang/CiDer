@@ -77,8 +77,8 @@ def main():
 
     log_heatmap = np.log10(heatmap + 1e-5)
 
-    plt.figure(figsize=(6, 2))
-    ax = sns.heatmap(log_heatmap, cmap=sky_cmap, fmt=".2f", cbar=False, annot=heatmap, annot_kws={"size": 4})
+    plt.figure(figsize=(6, 3))
+    ax = sns.heatmap(log_heatmap, cmap=sky_cmap, fmt=".2f", cbar=False, annot=False, annot_kws={"size": 4})
 
     sm = plt.cm.ScalarMappable(cmap=sky_cmap, norm=mcolors.Normalize(vmin=heatmap.min()+1e-5, vmax=heatmap.max()))
     cbar = plt.colorbar(sm, ax=ax, format='% .2f')
@@ -93,6 +93,11 @@ def main():
                     plt.step([j, j+1], [i+1, i+1], where='mid', color='orange')
                 if heatmap[i, j+1] < level:
                     plt.step([j+1, j+1], [i, i+1], where='mid', color='orange')
+
+    from matplotlib.lines import Line2D
+    legend_elements = [Line2D([0], [0], color='orange', lw=2, label='0.3 Contour')]
+    ax.legend(handles=legend_elements, loc='upper right', frameon=False, fontsize=12)
+
 
     if joint:
         if joint[0] == 'adj':

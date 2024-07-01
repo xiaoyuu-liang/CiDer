@@ -3,7 +3,7 @@ defaults:
     - general : general_default
     - model : mpnn
     - train : train_default
-    - dataset : citeseer
+    - dataset : pubmed
     - denoiser : denoiser_default
 
 hydra:

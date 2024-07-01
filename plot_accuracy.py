@@ -7,11 +7,12 @@ import seaborn as sns
 import argparse
 
 datasets = ['cora', 'cora_ml', 'citeseer', 'pubmed']
-naive_acc = [0.74, 0.71, 0.6580, 0.72]
+seed = [42, 0, 12, 71]
+naive_acc = [0.7375, 0.7928, 0.6580, 0.7694]
 
 flip_prob_X = [0.00, 0.10, 0.35, 0.65, 0.79]
 flip_prob_X_coraml = [0.00, 0.10, 0.35, 0.65, 0.78]
-flip_prob_X_pubmed = [0.00, 0.01, 0.02, 0.59, 0.04]
+flip_prob_X_pubmed = [0.00, 0.09, 0.32, 0.59, 0.72]
 
 flip_prob_E = [0.00, 0.10, 0.35, 0.66, 0.80]
 
@@ -27,81 +28,102 @@ cider_cora_acc = [
 
 sparse_cora_acc = [
 # attr  0,   100,  200,  300,  350
-    [0.7356, 0.7387, 0.7469, 0.7233, 0.6594], # adj 0
-    [0.7351, 0.7374, 0.7442, 0.7456, 0.6952], # adj 100
-    [0.7342, 0.7342, 0.7401, 0.7347, 0.6268], # adj 200
-    [0.6980, 0.7129, 0.7197, 0.7283, 0.7052], # adj 300
-    [0.6308, 0.6630, 0.6957, 0.6975, 0.6893], # adj 350
+    [0.7475, 0.7447, 0.7461, 0.7321, 0.7128], # adj 0
+    [0.7400, 0.7461, 0.7513, 0.7480, 0.7087], # adj 100
+    [0.7400, 0.7447, 0.7564, 0.7428, 0.7077], # adj 200
+    [0.7293, 0.7368, 0.7415, 0.7466, 0.6295], # adj 300
+    [0.6979, 0.7053, 0.7227, 0.6656, 0.5672], # adj 350
 ]
 
 cider_coraml_acc = [
 # attr  0,   100,  200,  300,  350 
-    [0.7663, 0.7696, 0.7763, 0.7730, 0.6945], # adj 0
-    [0.7646, 0.7696, 0.7730, 0.7746, 0.6945], # adj 100
-    [0.7663, 0.7679, 0.7730, 0.7813, 0.7112], # adj 200
-    [0.7529, 0.7629, 0.7813, 0.7913, 0.6928], # adj 300
-    [0.7412, 0.7529, 0.7713, 0.7830, 0.7045], # adj 350
+    [], # adj 0
+    [], # adj 100
+    [], # adj 200
+    [], # adj 300
+    [], # adj 350
 ]
 
 sparse_coraml_acc = [
 # attr  0,   100,  200,  300,  350
-    [0.7933, 0.7767, 0.7767, 0.7885, 0.7703], # adj 0
-    [0.7779, 0.7770, 0.7916, 0.7933, 0.7675], # adj 100
-    [0.7822, 0.7826, 0.7940, 0.7909, 0.7866], # adj 200
-    [0.7561, 0.7565, 0.7905, 0.7866, 0.7858], # adj 300
-    [0.7090, 0.7368, 0.7660, 0.7628, 0.7636], # adj 350
+    [0.7849, 0.7785, 0.7850, 0.7878, 0.7658], # adj 0
+    [0.7695, 0.7732, 0.7821, 0.7910, 0.7699], # adj 100
+    [0.7780, 0.7829, 0.7902, 0.7935, 0.7792], # adj 200
+    [0.7683, 0.7873, 0.7955, 0.7923, 0.7545], # adj 300
+    [0.7557, 0.7707, 0.7695, 0.7695, 0.4613], # adj 350
 ]
 
 cider_citeseer_acc = [
 # attr  0,   100,  200,  300,  350  
-    [0.7205, 0., 0., 0., 0.], # adj 0
-    [0.7175, 0., 0., 0., 0.], # adj 100
-    [0.7100, 0., 0., 0., 0.], # adj 200
-    [0.7069, 0., 0., 0., 0.], # adj 300
-    [0.6979, 0., 0., 0., 0.], # adj 350
+    [0.7205, 0.7190, 0.7190, 0.6918, 0.5166], # adj 0
+    [0.7175, 0.7221, 0.7205, 0.7009, 0.5211], # adj 100
+    [0.7100, 0.7190, 0.7221, 0.6994, 0.5135], # adj 200
+    [0.7069, 0.7115, 0.7175, 0.7024, 0.5166], # adj 300
+    [0.6979, 0.7069, 0.7115, 0.7039, 0.5226], # adj 350
 ]
 
 sparse_citeseer_acc = [
 # attr  0,   100,  200,  300,  350
-    [0.6572, 0.6428, 0.6540, 0.6684, 0.6802], # adj 0
-    [0.6332, 0.6475, 0.6578, 0.6674, 0.6743], # adj 100
-    [0.6352, 0.6460, 0.6572, 0.6599, 0.6733], # adj 200
-    [0.6193, 0.6262, 0.6374, 0.6652, 0.6807], # adj 300
-    [0.6107, 0.6080, 0.6406, 0.6535, 0.6487], # adj 350
+    [0.6585, 0.6436, 0.6608, 0.6724, 0.6807], # adj 0
+    [0.6409, 0.6448, 0.6547, 0.6696, 0.6845], # adj 100
+    [0.6386, 0.6387, 0.6541, 0.6746, 0.6818], # adj 200
+    [0.6199, 0.6403, 0.6586, 0.6745, 0.6856], # adj 300
+    [0.5994, 0.6259, 0.6337, 0.6574, 0.6745], # adj 350
 ]
 
 cider_pubmed_acc = [
 # attr  0,   100,  200,  300,  350 
-    [0.74, 0.74, 0.74, 0.74, 0.74], # adj 0
-    [0.74, 0.74, 0.74, 0.74, 0.74], # adj 100
-    [0.74, 0.74, 0.74, 0.74, 0.74], # adj 200
-    [0.74, 0.74, 0.74, 0.7385, 0.74], # adj 300
-    [0.74, 0.74, 0.74, 0.74, 0.74], # adj 350
+    [0.7652, 0.7704], # adj 0
+    [0.7654, 0.7720], # adj 100
+    [0.7664, ], # adj 200
+    [0.7631, ], # adj 300
+    [0.7492], # adj 350
 ]
 
 sparse_pubmed_acc = [
 # attr  0,   100,  200,  300, 350
-    [0.74, 0.74, 0.74, 0.74, 0.74], # adj 0
-    [0.74, 0.74, 0.74, 0.74, 0.74], # adj 100
-    [0.74, 0.74, 0.74, 0.74, 0.74], # adj 200
-    [0.74, 0.74, 0.74, 0.6901, 0.74], # adj 300
-    [0.74, 0.74, 0.74, 0.74, 0.74], # adj 350
+    [0.7396, 0.7355, 0.7360, 0.7036, 0.6160], # adj 0
+    [0.7358, 0.7297, 0.7331, 0.7168, 0.6523], # adj 100
+    [0.7350, 0.7395, 0.7369, 0.7059, 0.4880], # adj 200
+    [0.7122, 0.7213, 0.7238, 0.6271, 0.3680], # adj 300
+    [0.7128, 0.6978, 0.6620, 0.6451, 0.3724], # adj 350
 ]
 
 def parse_arguments():
     arg = argparse.ArgumentParser()
+    arg.add_argument("--data", type=str, required=True,help="dataset name")
+    arg.add_argument("--gap", type=str, required=True, default='', help="gap type")
 
     args = vars(arg.parse_args())
 
-    return
+    return args["data"], args["gap"]
 
 def main():
-        
-    acc_gap_sparse = np.array(cider_cora_acc) - np.array(sparse_cora_acc)
-    acc_gap_naive = np.array(cider_cora_acc) - naive_acc[0]
+
+    dataset, gap = parse_arguments()
+    
+    if dataset == 'citeseer':
+        acc_gap_sparse = np.array(cider_citeseer_acc) - np.array(sparse_citeseer_acc)
+        acc_gap_naive = np.array(cider_citeseer_acc) - naive_acc[2]
+    if dataset == 'cora':
+        acc_gap_sparse = np.array(cider_cora_acc) - np.array(sparse_cora_acc)
+        acc_gap_naive = np.array(cider_cora_acc) - naive_acc[0]
+    if dataset == 'coraml':
+        acc_gap_sparse = np.array(cider_coraml_acc) - np.array(sparse_coraml_acc)
+        acc_gap_naive = np.array(cider_coraml_acc) - naive_acc[1]
+        flip_prob_X = flip_prob_X_coraml
+    if dataset == 'pubmed':
+        acc_gap_sparse = np.array(cider_pubmed_acc) - np.array(sparse_pubmed_acc)
+        acc_gap_naive = np.array(cider_pubmed_acc) - naive_acc[3]
+        flip_prob_X = flip_prob_X_pubmed
+    
+    if gap == 'naive':
+        acc_gap = acc_gap_naive
+    if gap == 'sparse':
+        acc_gap = acc_gap_sparse
 
     # Define your custom colors
-    colors = ["#f7fef0", "#ceefcc", "#6fc8ca", "#3492b2"] 
+    colors = ["#fff4d4", "#f7fef0", "#ceefcc", "#6fc8ca", "#3492b2"] 
     n_bins = 100  # Increase this number for a smoother transition between colors
     cmap_name = "MintCmap"
 
@@ -110,12 +132,12 @@ def main():
 
     # Draw heatmap
     plt.figure(figsize=(10, 8))
-    ax = sns.heatmap(acc_gap_sparse, annot=True, cmap=mint_cmap, fmt=".2f", 
+    ax = sns.heatmap(acc_gap, annot=True, cmap=mint_cmap, fmt=".2f", 
                      xticklabels=flip_prob_X, yticklabels=flip_prob_E, annot_kws={"size":14},
                      vmin=-0.05, vmax=0.15,
-                     cbar_kws={'ticks': np.linspace(-0.05, 0.15, 6)})
-    plt.xlabel("Flip Probability X", fontsize=20)
-    plt.ylabel("Flip Probability E", fontsize=20)
+                     cbar_kws={'ticks': np.linspace(-0.05, 0.15, 5)})
+    plt.xlabel("X Flip Probability", fontsize=20)
+    plt.ylabel("A Flip Probability", fontsize=20)
     plt.gca().invert_yaxis()
     # Set color bar label font size
     cbar = ax.collections[0].colorbar
@@ -123,7 +145,8 @@ def main():
     cbar.ax.yaxis.set_tick_params(labelsize=20)
     cbar.ax.tick_params(labelsize=16)
 
-    plt.savefig("figs/sparse_cora.png")
+    plt.savefig(f"figs/{gap}_{dataset}.png")
+    print(f"figs/{gap}_{dataset}.png saved")
     plt.show()
     
     return

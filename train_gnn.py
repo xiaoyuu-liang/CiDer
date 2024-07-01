@@ -59,9 +59,9 @@ seml.setup_logger(ex)
 
 @ex.config
 def config():
-    seed = 12
+    seed = 0
     model = 'gcn'
-    dataset = 'citeseer'
+    dataset = 'cora_ml'
 
 @ex.automain
 def run(seed, model, dataset, _run, _log):  

@@ -15,7 +15,7 @@ def config():
             db_collection, overwrite=overwrite))
 
     # default params
-    dataset = 'citeseer'
+    dataset = 'cora_ml'
     n_per_class = 20
     seed = 42
 
@@ -24,21 +24,21 @@ def config():
     lr = 1e-3
     weight_decay = 1e-3
 
-    model = 'gcn'
+    arch = 'gcn'
     n_hidden = 64
     p_dropout = 0.5
 
-    pf_plus_adj = 0.0000
-    pf_minus_adj = 0.0001
+    pf_plus_att = [0.0000, 0.0018, 0.0062, 0.0116, 0.0140]
+    pf_minus_att = [0.0001, 0.1010, 0.3481, 0.6488, 0.7836]
 
-    pf_plus_att = 0.0068
-    pf_minus_att = 0.7970
+    pf_plus_adj = [0.0000, 0.0002, 0.0006, 0.0012, 0.0015]
+    pf_minus_adj = [0.0001, 0.1026, 0.3537, 0.6592, 0.7962]
 
     n_samples_train = 1
     batch_size_train = 1
 
     n_samples_pre_eval = 10
-    n_samples_eval = 100
+    n_samples_eval = 1000
     batch_size_eval = 10
 
     mean_softmax = False
@@ -50,7 +50,7 @@ def config():
 
 @ex.automain
 def run(_config, dataset, n_per_class, seed,
-        patience, max_epochs, lr, weight_decay, model, n_hidden, p_dropout,
+        patience, max_epochs, lr, weight_decay, arch, n_hidden, p_dropout,
         pf_plus_adj, pf_plus_att, pf_minus_adj, pf_minus_att, conf_alpha,
         n_samples_train, n_samples_pre_eval, n_samples_eval, mean_softmax, early_stopping,
         batch_size_train, batch_size_eval, save_dir,
@@ -79,152 +79,168 @@ def run(_config, dataset, n_per_class, seed,
 
     try:
         # os.makedirs('checkpoints/' + args.general.name)
-        os.makedirs(f'{save_dir}/{model}_{dataset}')
+        os.makedirs(f'{save_dir}/{arch}_{dataset}')
     except OSError:
         pass
-    save_name = f'{save_dir}/{model}_{dataset}/X[{pf_plus_att}-{pf_minus_att}]_E[{pf_plus_adj}-{pf_minus_adj}].pt'
+    save_name = f'{save_dir}/{arch}_{dataset}/X[{pf_plus_att}-{pf_minus_att}]_E[{pf_plus_adj}-{pf_minus_adj}].pt'
 
-    sample_config = {
-        'n_samples': n_samples_train,
-        'pf_plus_adj': pf_plus_adj,
-        'pf_plus_att': pf_plus_att,
-        'pf_minus_adj': pf_minus_adj,
-        'pf_minus_att': pf_minus_att,
-    }
+    sample_config_dict = {}
+    for i in range(5):
+        for j in range(5):
+            sample_config_dict[i*5+j] = {
+                'n_samples': n_samples_train,
+                'pf_plus_adj': pf_plus_adj[i],
+                'pf_plus_att': pf_plus_att[j],
+                'pf_minus_adj': pf_minus_adj[i],
+                'pf_minus_att': pf_minus_att[j]
+            }
 
-    # if we need to sample at least once and at least one flip probability is non-zero
-    if n_samples_train > 0 and (pf_plus_adj+pf_plus_att+pf_minus_adj+pf_minus_att > 0):
-        sample_config_train = sample_config
-        sample_config_train['mean_softmax'] = mean_softmax
-    else:
-        sample_config_train = None
-    sample_config_eval = sample_config.copy()
-    sample_config_eval['n_samples'] = n_samples_eval
-    
-    sample_config_pre_eval = sample_config.copy()
-    sample_config_pre_eval['n_samples'] = n_samples_pre_eval
+    for sample_config in sample_config_dict:
+        sample_config = sample_config_dict[sample_config]
+        print(f'Running with sample config {sample_config}')
 
-    datafile = f'data/{dataset}.npz'
-    graph = load_and_standardize(datafile)
+        pf_plus_adj = sample_config['pf_plus_adj']
+        pf_plus_att = sample_config['pf_plus_att']
+        pf_minus_adj = sample_config['pf_minus_adj']
+        pf_minus_att = sample_config['pf_minus_att']
 
-    edge_idx = torch.LongTensor(
-        np.stack(graph.adj_matrix.nonzero())).cuda()
-    attr_idx = torch.LongTensor(
-        np.stack(graph.attr_matrix.nonzero())).cuda()
-    labels = torch.LongTensor(graph.labels).cuda()
+        # if we need to sample at least once and at least one flip probability is non-zero
+        if n_samples_train > 0 and (pf_plus_adj+pf_plus_att+pf_minus_adj+pf_minus_att > 0):
+            sample_config_train = sample_config
+            sample_config_train['mean_softmax'] = mean_softmax
+        else:
+            sample_config_train = None
+        sample_config_eval = sample_config.copy()
+        sample_config_eval['n_samples'] = n_samples_eval
+        
+        sample_config_pre_eval = sample_config.copy()
+        sample_config_pre_eval['n_samples'] = n_samples_pre_eval
 
-    n, d = graph.attr_matrix.shape
-    nc = graph.labels.max() + 1
+        datafile = f'data/{dataset}.npz'
+        graph = load_and_standardize(datafile)
 
-    idx = {}
-    bi_labels =  binarize_labels(graph.labels)
-    idx['train'], idx['val'], idx['test'] = get_train_val_test_split(random_state=np.random.RandomState(seed),
-                                                                     labels=bi_labels,
-                                                                     train_examples_per_class=n_per_class,
-                                                                     val_examples_per_class=n_per_class,
-                                                                     test_examples_per_class=None)
+        edge_idx = torch.LongTensor(
+            np.stack(graph.adj_matrix.nonzero())).cuda()
+        attr_idx = torch.LongTensor(
+            np.stack(graph.attr_matrix.nonzero())).cuda()
+        labels = torch.LongTensor(graph.labels).cuda()
 
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    if model.lower() == 'gcn':
-        model = GCN(nfeat=graph.num_node_attr, nlayers=1, nhid=16, nclass=graph.num_classes, device=device)
-    elif model.lower() == 'gat':
-        model = GAT(nfeat=graph.num_node_attr, nhid=2, heads=8, nclass=graph.num_classes, device=device)
-    elif model.lower() == 'appnp':
-        model = APPNP(nfeat=graph.num_node_attr, nhid=16, K=8, alpha=0.15, nclass=graph.num_classes, device=device)
-    elif model.lower() == 'sage':
-        model = SAGE(nfeat=graph.num_node_attr, nhid=16, nclass=graph.num_classes, device=device)
-    model.to(device)
+        n, d = graph.attr_matrix.shape
+        nc = graph.labels.max() + 1
 
-    print(f'nodes: {n}, features: {d}, classes: {nc}')
-    trace_val = train_gnn(model=model, edge_idx=edge_idx, attr_idx=attr_idx, labels=labels, n=n, d=d, nc=nc,
-                          idx_train=idx['train'], idx_val=idx['val'], lr=lr, weight_decay=weight_decay,
-                          patience=patience, max_epochs=max_epochs, display_step=10,
-                          sample_config=sample_config_train,
-                          batch_size=batch_size_train, early_stopping=early_stopping)
+        idx = {}
+        bi_labels =  binarize_labels(graph.labels)
+        idx['train'], idx['val'], idx['test'] = get_train_val_test_split(random_state=np.random.RandomState(seed),
+                                                                        labels=bi_labels,
+                                                                        train_examples_per_class=n_per_class,
+                                                                        val_examples_per_class=30,
+                                                                        test_examples_per_class=None)
 
-    pre_votes = predict_smooth_gnn(attr_idx=attr_idx, edge_idx=edge_idx,
-                                   sample_config=sample_config_pre_eval,
-                                   model=model, n=n, d=d, nc=nc,
-                                   batch_size=batch_size_eval)
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        if arch.lower() == 'gcn':
+            model = GCN(nfeat=graph.num_node_attr, nlayers=1, nhid=16, nclass=graph.num_classes, device=device)
+        elif arch.lower() == 'gat':
+            model = GAT(nfeat=graph.num_node_attr, nhid=2, heads=8, nclass=graph.num_classes, device=device)
+        elif arch.lower() == 'appnp':
+            model = APPNP(nfeat=graph.num_node_attr, nhid=16, K=8, alpha=0.15, nclass=graph.num_classes, device=device)
+        elif arch.lower() == 'sage':
+            model = SAGE(nfeat=graph.num_node_attr, nhid=16, nclass=graph.num_classes, device=device)
+        model.to(device)
 
-    votes = predict_smooth_gnn(attr_idx=attr_idx, edge_idx=edge_idx,
-                               sample_config=sample_config_eval,
-                               model=model, n=n, d=d, nc=nc,
-                               batch_size=batch_size_eval)
+        print(f'nodes: {n}, features: {d}, classes: {nc}')
+        trace_val = train_gnn(model=model, edge_idx=edge_idx, attr_idx=attr_idx, labels=labels, n=n, d=d, nc=nc,
+                            idx_train=idx['train'], idx_val=idx['val'], lr=lr, weight_decay=weight_decay,
+                            patience=patience, max_epochs=max_epochs, display_step=10,
+                            sample_config=sample_config_train,
+                            batch_size=batch_size_train, early_stopping=early_stopping)
 
-    acc_clean = {}
-    for split_name in ['train', 'val', 'test']:
-        acc_clean[split_name] = accuracy_majority(votes=pre_votes, labels=graph.labels, idx=idx[split_name])
-    acc_majority = {}
-    for split_name in ['train', 'val', 'test']:
-        acc_majority[split_name] = accuracy_majority(votes=votes, labels=graph.labels, idx=idx[split_name])
+        pre_votes = predict_smooth_gnn(attr_idx=attr_idx, edge_idx=edge_idx,
+                                    sample_config=sample_config_pre_eval,
+                                    model=model, n=n, d=d, nc=nc,
+                                    batch_size=batch_size_eval)
 
-    votes_max = votes.max(1)[idx['test']]
-    correct = votes.argmax(1)[idx['test']] == graph.labels[idx['test']]
+        votes = predict_smooth_gnn(attr_idx=attr_idx, edge_idx=edge_idx,
+                                sample_config=sample_config_eval,
+                                model=model, n=n, d=d, nc=nc,
+                                batch_size=batch_size_eval)
 
-    agreement = (votes.argmax(1) == pre_votes.argmax(1)).mean() 
+        acc_clean = {}
+        for split_name in ['train', 'val', 'test']:
+            acc_clean[split_name] = accuracy_majority(votes=pre_votes, labels=graph.labels, idx=idx[split_name])
+        acc_majority = {}
+        for split_name in ['train', 'val', 'test']:
+            acc_majority[split_name] = accuracy_majority(votes=votes, labels=graph.labels, idx=idx[split_name])
 
-    # # we are perturbing ONLY the ATTRIBUTES
-    # if pf_plus_adj == 0 and pf_minus_adj == 0:
-    #     print('Just ATT')
-    #     grid_base, grid_lower, grid_upper = binary_certificate(
-    #         votes=votes, pre_votes=pre_votes, n_samples=n_samples_eval, conf_alpha=conf_alpha,
-    #         pf_plus=pf_plus_att, pf_minus=pf_minus_att)
-    # # we are perturbing ONLY the GRAPH
-    # elif pf_plus_att == 0 and pf_minus_att == 0:
-    #     print('Just ADJ')
-    #     grid_base, grid_lower, grid_upper = binary_certificate(
-    #         votes=votes, pre_votes=pre_votes, n_samples=n_samples_eval, conf_alpha=conf_alpha,
-    #         pf_plus=pf_plus_adj, pf_minus=pf_minus_adj)
-    # else:
-    #     grid_base, grid_lower, grid_upper = joint_binary_certificate(
-    #         votes=votes, pre_votes=pre_votes, n_samples=n_samples_eval, conf_alpha=conf_alpha,
-    #         pf_plus_adj=pf_plus_adj, pf_minus_adj=pf_minus_adj,
-    #         pf_plus_att=pf_plus_att, pf_minus_att=pf_minus_att)
+        votes_max = votes.max(1)[idx['test']]
+        correct = votes.argmax(1)[idx['test']] == graph.labels[idx['test']]
 
-    # mean_max_ra_base = (grid_base > 0.5)[:, :, 0].argmin(1).mean()
-    # mean_max_rd_base = (grid_base > 0.5)[:, 0, :].argmin(1).mean()
-    # mean_max_ra_loup = (grid_lower >= grid_upper)[:, :, 0].argmin(1).mean()
-    # mean_max_rd_loup = (grid_lower >= grid_upper)[:, 0, :].argmin(1).mean()
+        agreement = (votes.argmax(1) == pre_votes.argmax(1)).mean() 
 
-    run_id = _config['overwrite']
-    db_collection = _config['db_collection']
-    
-    # torch.save(model.state_dict(), save_name)
-    # print(f'Saved model to {save_name}')
+        # # we are perturbing ONLY the ATTRIBUTES
+        # if pf_plus_adj == 0 and pf_minus_adj == 0:
+        #     print('Just ATT')
+        #     grid_base, grid_lower, grid_upper = binary_certificate(
+        #         votes=votes, pre_votes=pre_votes, n_samples=n_samples_eval, conf_alpha=conf_alpha,
+        #         pf_plus=pf_plus_att, pf_minus=pf_minus_att)
+        # # we are perturbing ONLY the GRAPH
+        # elif pf_plus_att == 0 and pf_minus_att == 0:
+        #     print('Just ADJ')
+        #     grid_base, grid_lower, grid_upper = binary_certificate(
+        #         votes=votes, pre_votes=pre_votes, n_samples=n_samples_eval, conf_alpha=conf_alpha,
+        #         pf_plus=pf_plus_adj, pf_minus=pf_minus_adj)
+        # else:
+        #     grid_base, grid_lower, grid_upper = joint_binary_certificate(
+        #         votes=votes, pre_votes=pre_votes, n_samples=n_samples_eval, conf_alpha=conf_alpha,
+        #         pf_plus_adj=pf_plus_adj, pf_minus_adj=pf_minus_adj,
+        #         pf_plus_att=pf_plus_att, pf_minus_att=pf_minus_att)
 
-    # binary_class_cert = (grid_base > 0.5)[idx['test']].T
-    # multi_class_cert = (grid_lower > grid_upper)[idx['test']].T
+        # mean_max_ra_base = (grid_base > 0.5)[:, :, 0].argmin(1).mean()
+        # mean_max_rd_base = (grid_base > 0.5)[:, 0, :].argmin(1).mean()
+        # mean_max_ra_loup = (grid_lower >= grid_upper)[:, :, 0].argmin(1).mean()
+        # mean_max_rd_loup = (grid_lower >= grid_upper)[:, 0, :].argmin(1).mean()
 
-    # the returned result will be written into the database
-    # results = {
-    #     'clean_acc': acc_clean['test'],
-    #     'majority_acc': acc_majority['test'],
-    #     'correct': correct.tolist(),
-    #     "binary": {
-    #         "ratios": minimize(binary_class_cert.mean(-1).T),
-    #         "cert_acc": minimize((correct * binary_class_cert).mean(-1).T)
-    #     },
-    #     "multiclass": {
-    #         "ratios": minimize(multi_class_cert.mean(-1).T),
-    #         "cert_acc": minimize((correct * multi_class_cert).mean(-1).T)
-    #     }
-    # }
+        run_id = _config['overwrite']
+        db_collection = _config['db_collection']
+        
+        # torch.save(model.state_dict(), save_name)
+        # print(f'Saved model to {save_name}')
 
-    results = {
-        'clean_acc': acc_clean['test'],
-        'majority_acc': acc_majority['test']
-    }
-    
-    hparams = {
-        'classifier': model.__class__.__name__.lower(),
-        'smoothing_config': {
-            'p': 1,
-            'p_plus_adj': pf_plus_adj,
-            'p_plus': pf_plus_att,
-            'p_minus_adj': pf_minus_adj,
-            'p_minus': pf_minus_att,
-        },
-    }
-    save_cetrificate(results, dataset, hparams, f"{save_dir}/{hparams['classifier']}_{dataset}")
-    return {k: results[k] for k in ('clean_acc', 'majority_acc')}
+        # binary_class_cert = (grid_base > 0.5)[idx['test']].T
+        # multi_class_cert = (grid_lower > grid_upper)[idx['test']].T
+
+        # the returned result will be written into the database
+        # results = {
+        #     'clean_acc': acc_clean['test'],
+        #     'majority_acc': acc_majority['test'],
+        #     'correct': correct.tolist(),
+        #     "binary": {
+        #         "ratios": minimize(binary_class_cert.mean(-1).T),
+        #         "cert_acc": minimize((correct * binary_class_cert).mean(-1).T)
+        #     },
+        #     "multiclass": {
+        #         "ratios": minimize(multi_class_cert.mean(-1).T),
+        #         "cert_acc": minimize((correct * multi_class_cert).mean(-1).T)
+        #     }
+        # }
+
+        results = {
+            'clean_acc': acc_clean['test'],
+            'majority_acc': acc_majority['test']
+        }
+        
+        hparams = {
+            'classifier': model.__class__.__name__.lower(),
+            'smoothing_config': {
+                'p': 1,
+                'p_plus_adj': pf_plus_adj,
+                'p_plus': pf_plus_att,
+                'p_minus_adj': pf_minus_adj,
+                'p_minus': pf_minus_att,
+            },
+        }
+        save_cetrificate(results, dataset, hparams, f"{save_dir}/{hparams['classifier']}_{dataset}")
+        import json
+        with open(f'{dataset}_res.txt', 'a') as f:
+            json.dump(sample_config, f, indent=4)
+            json.dump(results, f, indent=4)
+    return

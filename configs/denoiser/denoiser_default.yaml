@@ -8,4 +8,4 @@ n_samples: 1000
 certify: False
 
 classifier: 'gcn'
-classifier_path: 'gnn_checkpoints/gcn_citeseer_l1.pt'
+classifier_path: 'gnn_checkpoints/gcn_cora_ml_l1.pt'

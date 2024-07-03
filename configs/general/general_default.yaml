@@ -2,10 +2,10 @@
 name: 'mpnn_denoiser'      # Warning: 'debug' and 'test' are reserved name that have a special behavior
 
 wandb: offline                  # online | offline | disabled
-gpus: 4                        # Multi-gpu is not implemented on this branch
+gpus: '1'                        # Multi-gpu is not implemented on this branch
 
 resume: null            # If resume, path to ckpt file from outputs directory in main directory
-test_only: checkpoints/cora_ml/mpnn_denoiser/epoch=994.ckpt        # Use relative path
+test_only: checkpoints/pubmed/mpnn_denoiser/epoch=874.ckpt        # Use relative path
 
 check_val_every_n_epochs: 5
 sample_every_val: 4

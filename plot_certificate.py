@@ -23,26 +23,27 @@ def parse_arguments():
     arg.add_argument("--cert", type=str, required=True,help="path to the CiDer certificate file")
     arg.add_argument("--joint", type=str, required=False, default='', help="joint certificate slice")
     arg.add_argument("--singular", type=str, required=False, default='', help="singular certificate")
+    arg.add_argument("--type", type=str, required=False, default='cider', help="type of certificate")
     
     args = vars(arg.parse_args())
 
     joint = args["joint"].split(',') if args["joint"] else []
     joint = (joint[0], int(joint[1]), int(joint[2])) if joint else ()
 
-    return args["cert"], joint, args["singular"]
+    return args["cert"], joint, args["singular"], args["type"]
 
 def main():
-    path, joint, singular = parse_arguments()
+    path, joint, singular, type = parse_arguments()
     
     cert = torch.load(path)['multiclass']['cert_acc']
 
     if joint:
         max_ra_adj, max_rd_adj, max_ra_att, max_rd_att = cert[0]
-        print(f'max radius for joint certificate: {max_ra_adj-2, max_rd_adj-2, max_ra_att-2, max_rd_att-2}')
+        print(f'max radius for joint certificate: {max_ra_adj, max_rd_adj, max_ra_att, max_rd_att}')
         x_coords_adj, y_coords_adj, x_coords_att, y_coords_att = cert[1]
         cert_acc = cert[2]
 
-        heatmap = np.zeros((max_ra_adj-1, max_rd_adj-2, max_ra_att-1, max_rd_att-2))
+        heatmap = np.zeros((max_ra_adj, max_rd_adj, max_ra_att, max_rd_att))
         for x_adj, y_adj, x_att, y_att, acc in zip(x_coords_adj, y_coords_adj, x_coords_att, y_coords_att, cert_acc):
             heatmap[x_adj, y_adj, x_att, y_att] = acc
         heatmap[0, 0, 0, 0] = torch.load(path)['majority_acc']
@@ -57,11 +58,11 @@ def main():
             raise ValueError("joint certificate slice must be either 'adj' or 'att'")
     else:
         max_ra, max_rd = cert[0]
-        print(f'max radius for singular certificate: {max_ra-2, max_rd-2}')
+        print(f'max radius for singular certificate: {max_ra, max_rd}')
         x_coords, y_coords = cert[1]
         acc = cert[2]
 
-        heatmap = np.zeros((max_ra-1, max_rd-1))
+        heatmap = np.zeros((max_ra, max_rd))
         for x, y, acc in zip(x_coords, y_coords, acc):
             heatmap[x, y] = acc
         heatmap[0, 0] = torch.load(path)['majority_acc']
@@ -70,7 +71,10 @@ def main():
     # heatmap = heatmap * scale_factor
 
     # Define your custom colors
-    colors = ["#ffffff", "#dff3f8", "#9bc7df", "#5385bd"] 
+    if type == 'sparse':
+        colors = ["#ffffff", "#dff3f8", "#9bc7df", "#5385bd"]
+    elif type == 'cider':
+        colors = ["#ffffff", "#c4e9ca", "#aadca9", "#519d78"] 
     n_bins = 100  # Increase this number for a smoother transition between colors
     cmap_name = "SkyCmap"
     sky_cmap = LinearSegmentedColormap.from_list(cmap_name, colors, N=n_bins)
@@ -80,9 +84,10 @@ def main():
     plt.figure(figsize=(6, 3))
     ax = sns.heatmap(log_heatmap, cmap=sky_cmap, fmt=".2f", cbar=False, annot=False, annot_kws={"size": 4})
 
-    sm = plt.cm.ScalarMappable(cmap=sky_cmap, norm=mcolors.Normalize(vmin=heatmap.min()+1e-5, vmax=heatmap.max()))
+    sm = plt.cm.ScalarMappable(cmap=sky_cmap, norm=mcolors.Normalize(vmin=0, vmax=1))
     cbar = plt.colorbar(sm, ax=ax, format='% .2f')
     cbar.set_label('Certified accuracy')
+    cbar.set_ticks(np.linspace(0, 1, 5))
     cbar.outline.set_visible(False)
 
     level = 0.3

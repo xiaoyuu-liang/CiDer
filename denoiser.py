@@ -175,8 +175,8 @@ def main(cfg: DictConfig):
 
         classifier.eval()
         classifier.to(device)
-        for t_X in [0, 100, 200, 300, 350]:
-            for t_E in [0, 100, 200, 300, 350]:
+        for t_X in [100]:
+            for t_E in [300, 350]:
                 denoiser_config.attr_noise_scale = t_X
                 denoiser_config.adj_noise_scale = t_E
                 hparams = OmegaConf.to_container(denoiser_config)

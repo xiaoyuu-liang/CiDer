@@ -35,7 +35,7 @@ def train_gnn(model: str, dataset: str, seed: int, save_path: str, device: torch
     if model == 'gcn':
         model = GCN(nfeat=graph.num_node_attr, nlayers=1, nhid=16, nclass=graph.num_classes, device=device)
     elif model == 'gat':
-        model = GAT(nfeat=graph.num_node_attr, nlayers=1, nhid=2, heads=8, nclass=graph.num_classes, device=device)
+        model = GAT(nfeat=graph.num_node_attr, nlayers=2, nhid=2, heads=8, nclass=graph.num_classes, device=device)
     elif model == 'appnp':
         model = APPNP(nfeat=graph.num_node_attr, nhid=16, K=8, alpha=0.15, nclass=graph.num_classes, device=device)
     elif model == 'sage':
@@ -59,9 +59,9 @@ seml.setup_logger(ex)
 
 @ex.config
 def config():
-    seed = 0
+    seed = 78
     model = 'gcn'
-    dataset = 'cora_ml'
+    dataset = 'citeseer'
 
 @ex.automain
 def run(seed, model, dataset, _run, _log):  

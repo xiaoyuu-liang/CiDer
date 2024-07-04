@@ -22,15 +22,15 @@ hparams:
   n_samples: 1000  
 
   smoothing_config:
-    smoothing_distribution: "ablation"
+    smoothing_distribution: "hierarchical_sparse"
     append_indicator: False
     p: 0.8
-    p_plus: 0.0
-    p_minus: 0.0
+    p_plus: 0.0662
+    p_minus: 0.5942
   
-  dataset: "cora"
-  in_channels: 1433 
-  out_channels: 7
+  dataset: "pubmed"
+  in_channels: 500 
+  out_channels: 3
 
   arch: "GCN"
   k_heads: 8

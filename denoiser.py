@@ -159,13 +159,14 @@ def main(cfg: DictConfig):
         _, model = get_resume(cfg, model_kwargs)
         
         classifier_name = denoiser_config.classifier
+        nlayer = denoiser_config.classifier_nlayers
         nfeat = len(dataset_infos.node_attrs)
         nclass = len(dataset_infos.node_types)
         # Setup model
         if classifier_name == 'gcn':
-            classifier = GCN(nfeat=nfeat, nlayers=1, nhid=16, nclass=nclass, device=device)
+            classifier = GCN(nfeat=nfeat, nlayers=nlayer, nhid=16, nclass=nclass, device=device)
         elif classifier_name == 'gat':
-            classifier = GAT(nfeat=nfeat, nhid=2, heads=8, nclass=nclass, device=device)
+            classifier = GAT(nfeat=nfeat, nlayers=nlayer, nhid=2, heads=8, nclass=nclass, device=device)
         elif classifier_name == 'appnp':
             classifier = APPNP(nfeat=nfeat, nhid=16, K=8, alpha=0.15, nclass=nclass, device=device)
         elif classifier_name == 'sage':
@@ -175,8 +176,8 @@ def main(cfg: DictConfig):
 
         classifier.eval()
         classifier.to(device)
-        for t_X in [100]:
-            for t_E in [300, 350]:
+        for t_X in [0, 100, 200, 300, 350]:
+            for t_E in [0, 100, 200, 300, 350]:
                 denoiser_config.attr_noise_scale = t_X
                 denoiser_config.adj_noise_scale = t_E
                 hparams = OmegaConf.to_container(denoiser_config)

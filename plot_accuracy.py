@@ -7,10 +7,11 @@ import seaborn as sns
 import argparse
 
 datasets = ['cora', 'cora_ml', 'citeseer', 'pubmed']
-seed = [42, 0, 12, 71]
-naive_acc = [0.7375, 0.7928, 0.6580, 0.7694]
+seed = [42, 0, 78, 71]
+naive_acc = [0.7375, 0.7928, 0.6829, 0.7694]
 
-flip_prob_X = [0.00, 0.10, 0.35, 0.65, 0.79]
+flip_prob_X_cora = [0.00, 0.10, 0.35, 0.65, 0.79]
+flip_prob_X_citeseer = [0.00, 0.10, 0.35, 0.65, 0.79]
 flip_prob_X_coraml = [0.00, 0.10, 0.35, 0.65, 0.78]
 flip_prob_X_pubmed = [0.00, 0.09, 0.32, 0.59, 0.72]
 
@@ -73,11 +74,11 @@ sparse_citeseer_acc = [
 
 cider_pubmed_acc = [
 # attr  0,   100,  200,  300,  350 
-    [0.7652, 0.7704, 0.7763, 0.7601], # adj 0
-    [0.7654, 0.7720, 0.7786, 0.7619], # adj 100
-    [0.7664, 0.7735, 0.7829], # adj 200
-    [0.7631, 0., 0.7915, ], # adj 300
-    [0.7492, 0., 0.7903, ], # adj 350
+    [0.7652, 0.7704, 0.7763, 0.7601, 0.6820], # adj 0
+    [0.7654, 0.7720, 0.7786, 0.7619, 0.6817], # adj 100
+    [0.7664, 0.7735, 0.7829, 0.7682, 0.6837], # adj 200
+    [0.7631, 0.7824, 0.7915, 0.7730, 0.6867], # adj 300
+    [0.7492, 0.7781, 0.7903, 0.7723, 0.6817], # adj 350
 ]
 
 sparse_pubmed_acc = [
@@ -105,9 +106,11 @@ def main():
     if dataset == 'citeseer':
         acc_gap_sparse = np.array(cider_citeseer_acc) - np.array(sparse_citeseer_acc)
         acc_gap_naive = np.array(cider_citeseer_acc) - naive_acc[2]
+        flip_prob_X = flip_prob_X_citeseer
     if dataset == 'cora':
         acc_gap_sparse = np.array(cider_cora_acc) - np.array(sparse_cora_acc)
         acc_gap_naive = np.array(cider_cora_acc) - naive_acc[0]
+        flip_prob_X = flip_prob_X_cora
     if dataset == 'coraml':
         acc_gap_sparse = np.array(cider_coraml_acc) - np.array(sparse_coraml_acc)
         acc_gap_naive = np.array(cider_coraml_acc) - naive_acc[1]
@@ -121,6 +124,7 @@ def main():
         acc_gap = acc_gap_naive
     if gap == 'sparse':
         acc_gap = acc_gap_sparse
+    print(f'Average accuracy gap with {gap} for {dataset}: {np.mean(acc_gap):.6f}')
 
     # Define your custom colors
     colors = ["#fff4d4", "#f7fef0", "#ceefcc", "#6fc8ca", "#3492b2"] 

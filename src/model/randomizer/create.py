@@ -6,7 +6,7 @@ def create_gnn(hparams):
             in_channels += 1
 
     if hparams['arch'] == "GAT":
-        model = GAT(nfeat=in_channels, nhid=2, heads=hparams['k_heads'], nclass=hparams['out_channels'], device=hparams['device'])
+        model = GAT(nfeat=in_channels, nlayers=1, nhid=2, heads=hparams['k_heads'], nclass=hparams['out_channels'], device=hparams['device'])
     elif hparams['arch'] == "GCN":
         model = GCN(nfeat=in_channels, nhid=hparams['hidden_channels'], nclass=hparams['out_channels'], device=hparams['device'])
     elif hparams['arch'] == "APPNP":

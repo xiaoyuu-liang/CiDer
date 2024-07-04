@@ -249,3 +249,88 @@
     "clean_acc": 0.33776255941125366,
     "majority_acc": 0.3724127357285225
 }
+
+2-GCN{
+    "n_samples": 1,
+    "pf_plus_adj": 0.0002,
+    "pf_plus_att": 0.0662,
+    "pf_minus_adj": 0.6602,
+    "pf_minus_att": 0.5942,
+    "mean_softmax": false
+}{
+    "clean_acc": 0.6313691419226248,
+    "majority_acc": 0.7233096540093014
+}
+1-GAT{
+    "n_samples": 1,
+    "pf_plus_adj": 0.0002,
+    "pf_plus_att": 0.0662,
+    "pf_minus_adj": 0.6602,
+    "pf_minus_att": 0.5942,
+    "mean_softmax": false
+}{
+    "clean_acc": 0.4434507078243982,
+    "majority_acc": 0.47626105177083866
+}
+2-GAT{
+    "n_samples": 1,
+    "pf_plus_adj": 0.0002,
+    "pf_plus_att": 0.0662,
+    "pf_minus_adj": 0.6602,
+    "pf_minus_att": 0.5942,
+    "mean_softmax": false
+}{
+    "clean_acc": 0.5045740276996985,
+    "majority_acc": 0.538917565288496
+}
+APPNP{
+    "n_samples": 1,
+    "pf_plus_adj": 0.0002,
+    "pf_plus_att": 0.0662,
+    "pf_minus_adj": 0.6602,
+    "pf_minus_att": 0.5942,
+    "mean_softmax": false
+}{
+    "clean_acc": 0.5838401390095569,
+    "majority_acc": 0.6127663923953596
+}{
+    "n_samples": 1,
+    "pf_plus_adj": 0.0002,
+    "pf_plus_att": 0.0662,
+    "pf_minus_adj": 0.6602,
+    "pf_minus_att": 0.5942,
+    "mean_softmax": false
+}{
+    "clean_acc": 0.3980170695558849,
+    "majority_acc": 0.3938774467215209
+}{
+    "n_samples": 1,
+    "pf_plus_adj": 0.0002,
+    "pf_plus_att": 0.0662,
+    "pf_minus_adj": 0.6602,
+    "pf_minus_att": 0.5942,
+    "mean_softmax": false
+}{
+    "clean_acc": 0.3974037920989421,
+    "majority_acc": 0.457351663515102
+}{
+    "n_samples": 1,
+    "pf_plus_adj": 0.0002,
+    "pf_plus_att": 0.0662,
+    "pf_minus_adj": 0.6602,
+    "pf_minus_att": 0.5942,
+    "mean_softmax": false
+}{
+    "clean_acc": 0.29728624725302805,
+    "majority_acc": 0.2564010834568406
+}{
+    "n_samples": 1,
+    "pf_plus_adj": 0.0002,
+    "pf_plus_att": 0.0662,
+    "pf_minus_adj": 0.6602,
+    "pf_minus_att": 0.5942,
+    "mean_softmax": false
+}{
+    "clean_acc": 0.4072673378647723,
+    "majority_acc": 0.45081003730771196
+}

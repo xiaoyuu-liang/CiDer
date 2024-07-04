@@ -1,5 +1,5 @@
-attr_noise_scale: 0
-adj_noise_scale: 350
+attr_noise_scale: 300
+adj_noise_scale: 300
 
 alpha: 0.01
 pre_n_samples: 10
@@ -8,4 +8,5 @@ n_samples: 1000
 certify: False
 
 classifier: 'gcn'
-classifier_path: 'gnn_checkpoints/gcn_pubmed_l1.pt'
+classifier_nlayers: 1
+classifier_path: 'gnn_checkpoints/gcn_citeseer_l1.pt'

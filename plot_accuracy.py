@@ -56,11 +56,11 @@ sparse_coraml_acc = [
 
 cider_citeseer_acc = [
 # attr  0,   100,  200,  300,  350  
-    [0.7205, 0.7190, 0.7190, 0.6918, 0.5166], # adj 0
-    [0.7175, 0.7221, 0.7205, 0.7009, 0.5211], # adj 100
-    [0.7100, 0.7190, 0.7221, 0.6994, 0.5135], # adj 200
-    [0.7069, 0.7115, 0.7175, 0.7024, 0.5166], # adj 300
-    [0.6979, 0.7069, 0.7115, 0.7039, 0.5226], # adj 350
+    [0.7221, 0.7266, 0.7311, 0.7221, 0.6178], # adj 0
+    [0.7190, 0.7266, 0.7371, 0.7236, 0.6088], # adj 100
+    [0.7296, 0.7372, 0.7387, 0.7251, 0.6057], # adj 200
+    [0.7266, 0.7356, 0.7311, 0.7221, 0.5951], # adj 300
+    [0.7160, 0.7341, 0.7251, 0.7130, 0.6103], # adj 350
 ]
 
 sparse_citeseer_acc = [
@@ -135,19 +135,22 @@ def main():
     mint_cmap = LinearSegmentedColormap.from_list(cmap_name, colors, N=n_bins)
 
     # Draw heatmap
-    plt.figure(figsize=(10, 8))
+    plt.figure(figsize=(10, 8.5))
     ax = sns.heatmap(acc_gap, annot=True, cmap=mint_cmap, fmt=".2f", 
                      xticklabels=flip_prob_X, yticklabels=flip_prob_E, annot_kws={"size":14},
                      vmin=-0.05, vmax=0.15,
                      cbar_kws={'ticks': np.linspace(-0.05, 0.15, 5)})
-    plt.xlabel("X Flip Probability", fontsize=20)
-    plt.ylabel("A Flip Probability", fontsize=20)
+    plt.xlabel("X Flip Probability", fontsize=26, labelpad=20)
+    plt.ylabel("A Flip Probability", fontsize=26, labelpad=20)
+    plt.xticks(fontsize=22)
+    plt.yticks(fontsize=22)
+    plt.tight_layout()
     plt.gca().invert_yaxis()
     # Set color bar label font size
     cbar = ax.collections[0].colorbar
-    cbar.set_label('Clean accuracy gap', size=20)
-    cbar.ax.yaxis.set_tick_params(labelsize=20)
-    cbar.ax.tick_params(labelsize=16)
+    cbar.set_label('Clean accuracy gap', size=26)
+    cbar.ax.yaxis.set_tick_params(labelsize=22)
+    cbar.ax.tick_params(labelsize=22)
 
     plt.savefig(f"figs/{gap}_{dataset}.png")
     print(f"figs/{gap}_{dataset}.png saved")

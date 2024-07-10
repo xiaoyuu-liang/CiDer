@@ -15,7 +15,7 @@ def config():
             db_collection, overwrite=overwrite))
 
     # default params
-    dataset = 'pubmed'
+    dataset = 'cora_ml'
     n_per_class = 20
     seed = 42
 
@@ -24,15 +24,18 @@ def config():
     lr = 1e-3
     weight_decay = 1e-3
 
-    arch = 'gat'
+    arch = 'appnp'
     n_hidden = 64
     p_dropout = 0.5
 
-    pf_plus_att = [0.0662]
-    pf_minus_att = [0.5942]
+    pf_plus_att = [0.0057]
+    pf_minus_att = [0.6547]
 
-    pf_plus_adj = [0.0002]
-    pf_minus_adj = [0.6602]
+    pf_plus_adj = [0.0000]
+    pf_minus_adj = [0.0000]
+
+    # pf_plus_adj = [0.0005]
+    # pf_minus_adj = [0.6598]
 
     n_samples_train = 1
     batch_size_train = 1
@@ -138,9 +141,9 @@ def run(_config, dataset, n_per_class, seed,
 
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         if arch.lower() == 'gcn':
-            model = GCN(nfeat=graph.num_node_attr, nlayers=2, nhid=16, nclass=graph.num_classes, device=device)
+            model = GCN(nfeat=graph.num_node_attr, nlayers=1, nhid=16, nclass=graph.num_classes, device=device)
         elif arch.lower() == 'gat':
-            model = GAT(nfeat=graph.num_node_attr, nlayers=1, nhid=2, heads=8, nclass=graph.num_classes, device=device)
+            model = GAT(nfeat=graph.num_node_attr, nlayers=2, nhid=2, heads=8, nclass=graph.num_classes, device=device)
         elif arch.lower() == 'appnp':
             model = APPNP(nfeat=graph.num_node_attr, nhid=16, K=8, alpha=0.15, nclass=graph.num_classes, device=device)
         elif arch.lower() == 'sage':
@@ -176,57 +179,57 @@ def run(_config, dataset, n_per_class, seed,
 
         agreement = (votes.argmax(1) == pre_votes.argmax(1)).mean() 
 
-        # # we are perturbing ONLY the ATTRIBUTES
-        # if pf_plus_adj == 0 and pf_minus_adj == 0:
-        #     print('Just ATT')
-        #     grid_base, grid_lower, grid_upper = binary_certificate(
-        #         votes=votes, pre_votes=pre_votes, n_samples=n_samples_eval, conf_alpha=conf_alpha,
-        #         pf_plus=pf_plus_att, pf_minus=pf_minus_att)
-        # # we are perturbing ONLY the GRAPH
-        # elif pf_plus_att == 0 and pf_minus_att == 0:
-        #     print('Just ADJ')
-        #     grid_base, grid_lower, grid_upper = binary_certificate(
-        #         votes=votes, pre_votes=pre_votes, n_samples=n_samples_eval, conf_alpha=conf_alpha,
-        #         pf_plus=pf_plus_adj, pf_minus=pf_minus_adj)
-        # else:
-        #     grid_base, grid_lower, grid_upper = joint_binary_certificate(
-        #         votes=votes, pre_votes=pre_votes, n_samples=n_samples_eval, conf_alpha=conf_alpha,
-        #         pf_plus_adj=pf_plus_adj, pf_minus_adj=pf_minus_adj,
-        #         pf_plus_att=pf_plus_att, pf_minus_att=pf_minus_att)
+        # we are perturbing ONLY the ATTRIBUTES
+        if pf_plus_adj == 0 and pf_minus_adj == 0:
+            print('Just ATT')
+            grid_base, grid_lower, grid_upper = binary_certificate(
+                votes=votes, pre_votes=pre_votes, n_samples=n_samples_eval, conf_alpha=conf_alpha,
+                pf_plus=pf_plus_att, pf_minus=pf_minus_att)
+        # we are perturbing ONLY the GRAPH
+        elif pf_plus_att == 0 and pf_minus_att == 0:
+            print('Just ADJ')
+            grid_base, grid_lower, grid_upper = binary_certificate(
+                votes=votes, pre_votes=pre_votes, n_samples=n_samples_eval, conf_alpha=conf_alpha,
+                pf_plus=pf_plus_adj, pf_minus=pf_minus_adj)
+        else:
+            grid_base, grid_lower, grid_upper = joint_binary_certificate(
+                votes=votes, pre_votes=pre_votes, n_samples=n_samples_eval, conf_alpha=conf_alpha,
+                pf_plus_adj=pf_plus_adj, pf_minus_adj=pf_minus_adj,
+                pf_plus_att=pf_plus_att, pf_minus_att=pf_minus_att)
 
         # mean_max_ra_base = (grid_base > 0.5)[:, :, 0].argmin(1).mean()
         # mean_max_rd_base = (grid_base > 0.5)[:, 0, :].argmin(1).mean()
         # mean_max_ra_loup = (grid_lower >= grid_upper)[:, :, 0].argmin(1).mean()
         # mean_max_rd_loup = (grid_lower >= grid_upper)[:, 0, :].argmin(1).mean()
 
-        # run_id = _config['overwrite']
-        # db_collection = _config['db_collection']
+        run_id = _config['overwrite']
+        db_collection = _config['db_collection']
         
         # torch.save(model.state_dict(), save_name)
         # print(f'Saved model to {save_name}')
 
-        # binary_class_cert = (grid_base > 0.5)[idx['test']].T
-        # multi_class_cert = (grid_lower > grid_upper)[idx['test']].T
+        binary_class_cert = (grid_base > 0.5)[idx['test']].T
+        multi_class_cert = (grid_lower > grid_upper)[idx['test']].T
 
-        # # the returned result will be written into the database
-        # results = {
-        #     'clean_acc': acc_clean['test'],
-        #     'majority_acc': acc_majority['test'],
-        #     'correct': correct.tolist(),
-        #     "binary": {
-        #         "ratios": minimize(binary_class_cert.mean(-1).T),
-        #         "cert_acc": minimize((correct * binary_class_cert).mean(-1).T)
-        #     },
-        #     "multiclass": {
-        #         "ratios": minimize(multi_class_cert.mean(-1).T),
-        #         "cert_acc": minimize((correct * multi_class_cert).mean(-1).T)
-        #     }
-        # }
-
+        # the returned result will be written into the database
         results = {
             'clean_acc': acc_clean['test'],
-            'majority_acc': acc_majority['test']
+            'majority_acc': acc_majority['test'],
+            'correct': correct.tolist(),
+            "binary": {
+                "ratios": minimize(binary_class_cert.mean(-1).T),
+                "cert_acc": minimize((correct * binary_class_cert).mean(-1).T)
+            },
+            "multiclass": {
+                "ratios": minimize(multi_class_cert.mean(-1).T),
+                "cert_acc": minimize((correct * multi_class_cert).mean(-1).T)
+            }
         }
+
+        # results = {
+        #     'clean_acc': acc_clean['test'],
+        #     'majority_acc': acc_majority['test']
+        # }
         
         hparams = {
             'classifier': model.__class__.__name__.lower(),
@@ -242,5 +245,5 @@ def run(_config, dataset, n_per_class, seed,
         import json
         with open(f'{dataset}_res.txt', 'a') as f:
             json.dump(sample_config, f, indent=4)
-            json.dump(results, f, indent=4)
-    return results
+            json.dump({k: results[k] for k in ['clean_acc', 'majority_acc']}, f, indent=4)
+    return {k: results[k] for k in ['clean_acc', 'majority_acc']}

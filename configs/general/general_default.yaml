@@ -2,7 +2,7 @@
 name: 'mpnn_denoiser'      # Warning: 'debug' and 'test' are reserved name that have a special behavior
 
 wandb: offline                  # online | offline | disabled
-gpus: '1'                        # Multi-gpu is not implemented on this branch
+gpus: 4                        # Multi-gpu is not implemented on this branch
 
 resume: null            # If resume, path to ckpt file from outputs directory in main directory
 test_only: checkpoints/citeseer/mpnn_denoiser/star.ckpt        # Use relative path

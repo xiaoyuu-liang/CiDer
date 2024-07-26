@@ -61,7 +61,7 @@ def main():
         print(f'max radius for singular certificate: {max_ra, max_rd}')
         x_coords, y_coords = cert[1]
         acc = cert[2]
-        heatmap = np.zeros((8, 18))
+        heatmap = np.zeros((6, 18))
         for x, y, acc in zip(x_coords, y_coords, acc):
             heatmap[x, y] = acc
         heatmap[0, 0] = torch.load(path)['majority_acc']
@@ -115,14 +115,14 @@ def main():
     cbar.outline.set_visible(False)
 
     level = 0.2
-    color_2 = '#FECD61'
+    color_2 = '#FC9527'
     for i in range(heatmap.shape[0]):
         for j in range(heatmap.shape[1]):
             if heatmap[i, j] >= level:
                 if heatmap[i+1, j] < level:
-                    plt.step([j, j+1], [i+1, i+1], where='mid', color=color_2)
+                    plt.step([j, j+1], [i+1, i+1], where='mid', color=color_2, linestyle='--')
                 if heatmap[i, j+1] < level:
-                    plt.step([j+1, j+1], [i, i+1], where='mid', color=color_2)
+                    plt.step([j+1, j+1], [i, i+1], where='mid', color=color_2, linestyle='--')
 
     level = 0.4
     color_4 = '#FC9527'
@@ -136,7 +136,7 @@ def main():
 
     from matplotlib.lines import Line2D
     legend_elements = [
-        Line2D([0], [0], color=color_2, lw=2, label='0.2 Contour'),
+        Line2D([0], [0], color=color_2, linestyle='--', lw=2, label='0.2 Contour'),
         Line2D([0], [0], color=color_4, lw=2, label='0.4 Contour')
     ]
     ax.legend(handles=legend_elements, loc='upper right', frameon=False, fontsize=12)

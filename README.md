@@ -1,3 +1,3 @@
-# CiDer: Certified robustness via diffusion model for node classification
+# CiDer: A Black-box Approach to Classify Node with Certified Robustness Guarantees
 
-try this time
+Inplementation for INFOCOM 2025 paper.

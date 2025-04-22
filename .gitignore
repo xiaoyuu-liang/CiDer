@@ -1,0 +1,60 @@
+# System files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+
+# tool files
+plot_accuracy.py
+plot_certificate.py
+
+# Build files
+/target/
+/dist/
+/build/git rm --cached <file_or_directory>
+/node_modules/
+
+# python pycache
+/__pycache__/
+/src/__pycache__/
+/src/model/__pycache__/
+/src/model/diffusion/__pycache__/
+/src/model/classifier/__pycache__/
+/src/model/sparse_randomizer/__pycache__/
+/src/model/randomizer/__pycache__/
+
+# data files
+/data/*/
+/graphs/
+/figs/
+/data/raw/
+/data/processed/
+/rand_results/
+/rand_gnn_results/
+*.pkl
+
+# dataset file
+# !data/*
+
+# running files
+/.hydra/
+/chains/
+/wandb/
+
+# model checkpoint
+/gnn_checkpoints/
+/checkpoints/
+/rand_gnn_checkpoints/
+
+# Log files
+*.log
+*.out
+*.txt
+
+# Other
+*.bak
+*.swp
+*.swo

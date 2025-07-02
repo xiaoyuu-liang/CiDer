@@ -6,13 +6,7 @@ This repository implements **CiDer: A Black-box Approach to Classify Node with C
 
 ## 🧠 Paper Overview
 
-CiDer introduces a novel **black-box certified robustness** framework for node classification. It leverages a denoiser-based model to provide provable guarantees on the classification robustness of graph nodes under adversarial perturbations. 
-
-### 1. Illustration  
-![CiDer Illustration](images/CiDer.pdf)
-
-### 2. Pipeline Overview  
-![CiDer pipeline](images/pipeline.pdf)
+CiDer introduces a novel **black-box certified robustness** framework for node classification. It leverages a denoiser-based model to provide provable guarantees on the classification robustness of graph nodes under adversarial perturbations.
 
 ---
 

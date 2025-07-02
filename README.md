@@ -1,16 +1,16 @@
-# CiDer 🍹
+## CiDer 🍹
 
 This repository implements **CiDer: A Black-box Approach to Classify Node with Certified Robustness Guarantees** in **IEEE INFOCOM 2025**.
 
 ---
 
-## 🧠 Paper Overview
+### 🧠 Paper Overview
 
 CiDer introduces a novel **black-box certified robustness** framework for node classification. It leverages a denoiser-based model to provide provable guarantees on the classification robustness of graph nodes under adversarial perturbations.
 
 ---
 
-## 🛠️ Quick Start
+### 🛠️ Quick Start
 
 1. Clone this repository
 ```bash
@@ -39,6 +39,6 @@ python denoiser.py
 python train_gnn.py
 ```
 
-## 🤝 More Info
+### 🤝 More Info
 
 Feel free to contact Xiaoyu Liang for questions or collaborations.

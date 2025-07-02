@@ -10,6 +10,10 @@ Thumbs.db
 # tool files
 plot_accuracy.py
 plot_certificate.py
+acc_plot.ipynb
+temp.py
+tool.py
+*.png
 
 # Build files
 /target/
@@ -34,6 +38,7 @@ plot_certificate.py
 /data/processed/
 /rand_results/
 /rand_gnn_results/
+/rand_configs/
 *.pkl
 
 # dataset file

@@ -13,6 +13,7 @@ plot_certificate.py
 acc_plot.ipynb
 temp.py
 tool.py
+smoothing.py
 *.png
 
 # Build files
@@ -58,6 +59,7 @@ tool.py
 *.log
 *.out
 *.txt
+!requirements.txt
 
 # Other
 *.bak
